@@ -1,16 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="fill_parent" 
 	android:layout_height="fill_parent"
 	android:orientation="vertical">
 
 	<ru.yandex.yandexmapkit.MapView
-        android:id="@+id/map"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-		android:apiKey="mZTPX0BiIezIKIBTwaHI37pavFaAeDd88UJyYwkHmvJUDMb~Z3kYu0I8v52Usw0yXytiPF8tZLzj68geUohA28jjeZOBMb6PnH6YLCxmyoc="
-        android:layout_weight="1"
-    />
-</LinearLayout>
+	    android:id="@+id/map"
+	    android:layout_width="fill_parent"
+	    android:layout_height="fill_parent"
+	    android:layout_above="@+id/two_buttons_layout"
+	    android:apiKey="mZTPX0BiIezIKIBTwaHI37pavFaAeDd88UJyYwkHmvJUDMb~Z3kYu0I8v52Usw0yXytiPF8tZLzj68geUohA28jjeZOBMb6PnH6YLCxmyoc=" >
+
+	</ru.yandex.yandexmapkit.MapView>
+	
+	<LinearLayout
+	    android:id="@+id/two_buttons_layout"
+	    android:layout_width="match_parent"
+	    android:layout_height="wrap_content"
+	    android:layout_alignParentBottom="true"
+	    android:visibility="visible" >
+	    
+		<ImageButton
+		    android:id="@+id/btnOrder"
+		    android:layout_width="fill_parent"
+		    android:layout_height="fill_parent"
+		    android:layout_weight="1"
+		    android:src="@drawable/passenger" />
+	
+		<ImageButton
+		    android:id="@+id/btnSettings"
+		    android:layout_width="fill_parent"
+		    android:layout_height="fill_parent"
+		    android:layout_weight="1"
+		    android:src="@android:drawable/ic_menu_preferences" />
+		
+	</LinearLayout>
+
+</RelativeLayout>
 
 

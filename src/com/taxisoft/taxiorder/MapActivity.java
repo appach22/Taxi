@@ -27,6 +27,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -38,8 +39,10 @@ import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
 
-public class MapActivity extends Activity {
+public class MapActivity extends Activity implements OnClickListener {
 
     MapController mMapController;
     OverlayManager mOverlayManager;
@@ -49,6 +52,7 @@ public class MapActivity extends Activity {
     Timer mTaxiesCoordsTimer;
     XmlPullParser mPositionsResponseParser;
     boolean mIsLoggedIn = false;
+    Button mBtnOrder, mBtnSettings;
 
     private static final int LOGIN_DIALOG_ID = 1;
     
@@ -88,6 +92,11 @@ public class MapActivity extends Activity {
 	        mPositionsResponseParser = factory.newPullParser();
 		} catch (XmlPullParserException e) {
 		}
+		
+		mBtnOrder = (Button)findViewById(R.id.btnOrder); 
+		mBtnOrder.setOnClickListener(this);
+		mBtnSettings = (Button)findViewById(R.id.btnSettings); 
+		mBtnSettings.setOnClickListener(this);
 	}
 
     public void createTaxi(Overlay overlay, TaxiData taxiData)
@@ -158,10 +167,10 @@ public class MapActivity extends Activity {
     protected void onResume() 
     {
     	super.onResume();
-    	if (!mIsLoggedIn)
+    	/*if (!mIsLoggedIn)
     	{
     		showDialog(LOGIN_DIALOG_ID);
-    	}
+    	}*/
     	SharedPreferences settings = getSharedPreferences("TaxiPrefs", MODE_PRIVATE);
     	mMapController.setPositionNoAnimationTo(new GeoPoint(settings.getFloat("Latitude", 51.735262f), settings.getFloat("Longitude", 36.185569f)), settings.getFloat("Scale", 0.0f));
     	mTaxiesCoordsTimer = new Timer();
@@ -283,4 +292,13 @@ public class MapActivity extends Activity {
         else
         	return null;
     }
+
+	@Override
+	public void onClick(View v) {
+		if (v == mBtnOrder)
+		{
+			Intent intent = new Intent(this, OrderFromActivity.class);
+			startActivity(intent);
+		}
+	}
 }
