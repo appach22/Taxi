@@ -32,7 +32,7 @@
         </activity>
         <activity
             android:name="com.taxisoft.taxiorder.OrderFromActivity"
-            android:label="@string/title_activity_order_from" >
+            android:label="@string/creating_order" >
         </activity>
     </application>
 

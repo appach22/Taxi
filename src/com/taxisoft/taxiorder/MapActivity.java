@@ -40,7 +40,7 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.widget.Button;
+import android.widget.ImageButton;
 
 public class MapActivity extends Activity implements OnClickListener {
 
@@ -52,7 +52,7 @@ public class MapActivity extends Activity implements OnClickListener {
     Timer mTaxiesCoordsTimer;
     XmlPullParser mPositionsResponseParser;
     boolean mIsLoggedIn = false;
-    Button mBtnOrder, mBtnSettings;
+    ImageButton mBtnOrder, mBtnSettings;
 
     private static final int LOGIN_DIALOG_ID = 1;
     
@@ -93,9 +93,9 @@ public class MapActivity extends Activity implements OnClickListener {
 		} catch (XmlPullParserException e) {
 		}
 		
-		mBtnOrder = (Button)findViewById(R.id.btnOrder); 
+		mBtnOrder = (ImageButton)findViewById(R.id.btnOrder); 
 		mBtnOrder.setOnClickListener(this);
-		mBtnSettings = (Button)findViewById(R.id.btnSettings); 
+		mBtnSettings = (ImageButton)findViewById(R.id.btnSettings); 
 		mBtnSettings.setOnClickListener(this);
 	}
 

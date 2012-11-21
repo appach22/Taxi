@@ -15,7 +15,7 @@ public class OrderFromActivity extends Activity {
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.activity_order_from, menu);
+		getMenuInflater().inflate(R.layout.activity_order_from, menu);
 		return true;
 	}
 
