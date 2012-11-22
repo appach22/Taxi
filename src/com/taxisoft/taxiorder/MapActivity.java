@@ -19,9 +19,18 @@ import com.taxisoft.taxiorder.R;
 import ru.yandex.yandexmapkit.MapController;
 import ru.yandex.yandexmapkit.MapView;
 import ru.yandex.yandexmapkit.OverlayManager;
+import ru.yandex.yandexmapkit.map.GeoCode;
+import ru.yandex.yandexmapkit.map.GeoCodeListener;
+import ru.yandex.yandexmapkit.map.MapEvent;
+import ru.yandex.yandexmapkit.map.OnMapListener;
 import ru.yandex.yandexmapkit.overlay.Overlay;
 import ru.yandex.yandexmapkit.overlay.OverlayItem;
+import ru.yandex.yandexmapkit.overlay.balloon.BalloonItem;
+import ru.yandex.yandexmapkit.overlay.balloon.OnBalloonListener;
+import ru.yandex.yandexmapkit.overlay.location.MyLocationItem;
+import ru.yandex.yandexmapkit.overlay.location.OnMyLocationListener;
 import ru.yandex.yandexmapkit.utils.GeoPoint;
+import ru.yandex.yandexmapkit.utils.ScreenPoint;
 import android.os.Bundle;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -42,18 +51,25 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageButton;
 
-public class MapActivity extends Activity implements OnClickListener {
+public class MapActivity extends Activity implements OnClickListener, OnMapListener, GeoCodeListener, OnBalloonListener, OnMyLocationListener{
 
     MapController mMapController;
     OverlayManager mOverlayManager;
     Overlay mOverlay;
     OverlayItem mMeItem = null;
     Drawable mMePic;
+    MyLocationBalloonItem mMeBalloon;
+    static GeoPoint mMyLocation = null;
+    GeoCode mMyGeoCode;
     Timer mTaxiesCoordsTimer;
     XmlPullParser mPositionsResponseParser;
     boolean mIsLoggedIn = false;
     ImageButton mBtnOrder, mBtnSettings;
 
+    public static final int INTENT_SHOW_ALL_TAXIES = 0;
+    public static final int INTENT_SHOW_ON_THE_MAP = 1;
+    public static final int INTENT_CURRENT_LOCATION = 2;
+    
     private static final int LOGIN_DIALOG_ID = 1;
     
     class TaxiData
@@ -76,11 +92,11 @@ public class MapActivity extends Activity implements OnClickListener {
         mMapController = mapView.getMapController();
         
         mapView.showBuiltInScreenButtons(true);
-
+        
         mOverlayManager = mMapController.getOverlayManager();
-
         mOverlayManager.getMyLocation().setEnabled(true);
-        //mOverlayManager.getMyLocation().addMyLocationListener(this);
+        mOverlayManager.getMyLocation().addMyLocationListener(this);
+
         mOverlay = new Overlay(mMapController);
         // Add the layer to the map
         mOverlayManager.addOverlay(mOverlay);
@@ -97,7 +113,12 @@ public class MapActivity extends Activity implements OnClickListener {
 		mBtnOrder.setOnClickListener(this);
 		mBtnSettings = (ImageButton)findViewById(R.id.btnSettings); 
 		mBtnSettings.setOnClickListener(this);
-	}
+
+        float px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 30, getResources().getDisplayMetrics());
+        Drawable dr = getResources().getDrawable(R.drawable.passenger);
+        Bitmap bitmap = ((BitmapDrawable)dr).getBitmap();
+        mMePic = new BitmapDrawable(getResources(), Bitmap.createScaledBitmap(bitmap, (int)px, (int)px, true));
+    }
 
     public void createTaxi(Overlay overlay, TaxiData taxiData)
     {
@@ -167,19 +188,44 @@ public class MapActivity extends Activity implements OnClickListener {
     protected void onResume() 
     {
     	super.onResume();
-    	/*if (!mIsLoggedIn)
-    	{
-    		showDialog(LOGIN_DIALOG_ID);
-    	}*/
+
+		int reason = getIntent().getIntExtra("Reason", INTENT_SHOW_ALL_TAXIES);
     	SharedPreferences settings = getSharedPreferences("TaxiPrefs", MODE_PRIVATE);
-    	mMapController.setPositionNoAnimationTo(new GeoPoint(settings.getFloat("Latitude", 51.735262f), settings.getFloat("Longitude", 36.185569f)), settings.getFloat("Scale", 0.0f));
-    	mTaxiesCoordsTimer = new Timer();
-    	mTaxiesCoordsTimer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-            	updateTaxiesPositions();
-            }
-    	}, 0, 5000);
+		if (reason == INTENT_SHOW_ALL_TAXIES)
+		{
+			mBtnOrder.setVisibility(View.VISIBLE);
+			mBtnSettings.setVisibility(View.VISIBLE);
+	    	mTaxiesCoordsTimer = new Timer();
+	    	mTaxiesCoordsTimer.scheduleAtFixedRate(new TimerTask() {
+	            @Override
+	            public void run() {
+	            	updateTaxiesPositions();
+	            }
+	    	}, 0, 5000);
+	    	mMapController.setPositionNoAnimationTo(new GeoPoint(settings.getFloat("Latitude", 51.735262f), settings.getFloat("Longitude", 36.185569f)), settings.getFloat("Scale", 0.0f));
+		}
+		else if (reason == INTENT_SHOW_ON_THE_MAP)
+		{
+			mBtnOrder.setVisibility(View.GONE);
+			mBtnSettings.setVisibility(View.GONE);
+			mMapController.addMapListener(this);
+	    	mMapController.setPositionNoAnimationTo(new GeoPoint(settings.getFloat("Latitude", 51.735262f), settings.getFloat("Longitude", 36.185569f)), settings.getFloat("Scale", 0.0f));
+		}
+		else if (reason == INTENT_CURRENT_LOCATION)
+		{
+			mBtnOrder.setVisibility(View.GONE);
+			mBtnSettings.setVisibility(View.GONE);
+			if (mMyLocation != null)
+			{
+				mMapController.getOverlayManager().getMyLocation().findMe();				
+				showMe(mMyLocation);
+				mMapController.getDownloader().getGeoCode(this, mMyLocation);
+			}
+			else
+			{
+				//TODO
+			}
+		}
     };
     
     private List<TaxiData> parsePositionsResponse(InputStream response)
@@ -257,10 +303,8 @@ public class MapActivity extends Activity implements OnClickListener {
         	
 	        mMapController.notifyRepaint();
 	    } catch (MalformedURLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
     }
@@ -301,4 +345,105 @@ public class MapActivity extends Activity implements OnClickListener {
 			startActivity(intent);
 		}
 	}
+
+	@Override
+	public void onMapActionEvent(MapEvent event) {
+		if (event.getMsg() == MapEvent.MSG_LONG_PRESS)
+		{
+			ScreenPoint sPoint = new ScreenPoint(event.getX(), event.getY());
+			mMapController.getDownloader().getGeoCode(this, mMapController.getGeoPoint(sPoint));
+		}
+	}
+	
+	@Override
+	public boolean onFinishGeoCode(GeoCode geoCode) {
+		int reason = getIntent().getIntExtra("Reason", INTENT_SHOW_ALL_TAXIES);
+
+		if (reason == INTENT_SHOW_ON_THE_MAP)
+		{
+			Intent resultIntent = new Intent();
+			if (geoCode.getKind().equals(GeoCode.OBJECT_KIND_STREET) ||
+				geoCode.getKind().equals(GeoCode.OBJECT_KIND_HOUSE))
+			{
+				resultIntent.putExtra("Street", geoCode.getTitle());
+				resultIntent.putExtra("City", geoCode.getSubtitle());
+				setResult(RESULT_OK, resultIntent);
+				finish();
+			}
+		}
+		else if (reason == INTENT_CURRENT_LOCATION)
+		{
+			mMyGeoCode = geoCode;
+			mMeBalloon.setText(mMyGeoCode.getTitle());
+			mMeBalloon.setVisible(true);
+		}
+		return true;
+	}	
+	
+    public void showMe(GeoPoint place)
+    {
+    	if (mMeItem == null)
+    	{
+    		// Create an object for the layer
+    		mMeItem = new OverlayItem(place, mMePic);
+            // Create a balloon model for the object
+    		mMeBalloon = new MyLocationBalloonItem(this, mMeItem.getGeoPoint());
+    		mMeBalloon.setOnBalloonListener(this);
+            // Add the balloon model to the object
+            mMeItem.setBalloonItem(mMeBalloon);
+    	}
+    	else
+    	{
+            mOverlay.removeOverlayItem(mMeItem);
+            mMeItem.setGeoPoint(place);
+    	}
+        // Add the object to the layer
+        mOverlay.addOverlayItem(mMeItem);
+    }
+
+	@Override
+	public void onBalloonAnimationEnd(BalloonItem arg0) {
+	}
+
+	@Override
+	public void onBalloonAnimationStart(BalloonItem arg0) {
+	}
+
+	@Override
+	public void onBalloonHide(BalloonItem arg0) {
+	}
+
+	@Override
+	public void onBalloonShow(BalloonItem arg0) {
+	}
+
+	@Override
+	public void onBalloonViewClick(BalloonItem balloonItem, View view) {
+		if (balloonItem == mMeBalloon)
+		{
+			if (view.getId() == R.id.btnYes)
+			{
+				Intent resultIntent = new Intent();
+				if (mMyGeoCode.getKind().equals(GeoCode.OBJECT_KIND_STREET) ||
+					mMyGeoCode.getKind().equals(GeoCode.OBJECT_KIND_HOUSE))
+				{
+					resultIntent.putExtra("Street", mMyGeoCode.getTitle());
+					resultIntent.putExtra("City", mMyGeoCode.getSubtitle());
+					setResult(RESULT_OK, resultIntent);
+					finish();
+				}
+			}
+			else if (view.getId() == R.id.btnNo)
+			{
+				setResult(RESULT_CANCELED);
+				finish();
+			}
+		}
+	}
+
+	@Override
+	public void onMyLocationChange(MyLocationItem myLocationItem) {
+		mMyLocation = myLocationItem.getGeoPoint();
+	}
+
 }
