@@ -14,6 +14,7 @@
         android:textAppearance="?android:attr/textAppearanceMedium" />
 
     <LinearLayout
+        android:id="@+id/linearLayout1"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
@@ -32,7 +33,92 @@
             android:layout_height="fill_parent"
             android:layout_weight="1"
             android:text="@string/show_on_the_map" />
-
     </LinearLayout>
+
+    <AutoCompleteTextView
+        android:id="@+id/edtStreetFrom"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/linearLayout1"
+        android:layout_toRightOf="@+id/tvStreetFrom"
+        android:ems="13"
+        android:maxLines="1" >
+
+        <requestFocus />
+    </AutoCompleteTextView>
+
+    <TextView
+        android:id="@+id/tvStreetFrom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/edtStreetFrom"
+        android:layout_alignBottom="@+id/edtStreetFrom"
+        android:layout_alignParentLeft="true"
+        android:text="@string/street" />
+
+    <EditText
+        android:id="@+id/edtHouse"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/edtStreetFrom"
+        android:layout_below="@+id/edtStreetFrom"
+        android:layout_toLeftOf="@+id/tvEntrance"
+        android:ems="8"
+        android:maxEms="8"
+        android:maxLines="1" />
+
+    <TextView
+        android:id="@+id/tvHouse"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/edtHouse"
+        android:layout_alignBottom="@+id/edtHouse"
+        android:layout_alignParentLeft="true"
+        android:text="@string/house" />
+
+    <TextView
+        android:id="@+id/tvEntrance"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/edtHouse"
+        android:layout_alignBottom="@+id/edtHouse"
+        android:layout_toLeftOf="@+id/edtEntrance"
+        android:text="@string/entrance" />
+
+    <EditText
+        android:id="@+id/edtEntrance"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/tvEntrance"
+        android:layout_alignBottom="@+id/tvEntrance"
+        android:layout_alignParentRight="true"
+        android:ems="2"
+        android:inputType="number"
+        android:maxEms="2"
+        android:maxLines="1" />
+
+    <TextView
+        android:id="@+id/tvOtherLandmark"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/edtHouse"
+        android:text="@string/other_landmark" />
+
+    <EditText
+        android:id="@+id/edtOtherLandmark"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/tvOtherLandmark"
+        android:ems="15" />
+
+    <Button
+        android:id="@+id/btnNext1"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:text="@string/next_button" />
 
 </RelativeLayout>

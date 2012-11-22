@@ -15,5 +15,6 @@
     <string name="current_location">Текущее местоположение</string>
     <string name="show_on_the_map">Указать на карте</string>
     <string name="creating_order">Оформление заказа</string>
+    <string name="next_button">Далее &gt;&gt;</string>
 
 </resources>
