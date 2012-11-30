@@ -7,7 +7,7 @@
     <string name="username">Номер телефона</string>
     <string name="password">Пароль</string>
     <string name="title_activity_order_from">OrderFromActivity</string>
-    <string name="from">Откуда:</string>
+    <string name="from">Адрес отправления</string>
     <string name="street">Улица</string>
     <string name="house">Дом</string>
     <string name="entrance">Подъезд</string>
@@ -16,5 +16,12 @@
     <string name="show_on_the_map">Указать на карте</string>
     <string name="creating_order">Оформление заказа</string>
     <string name="next_button">Далее &gt;&gt;</string>
+    <string name="place_order">Вызвать такси</string>
+    <string name="to">Адрес назначения</string>
+    <string name="time_and_contacts">Время и контакты</string>
+    <string name="phone_number">Контактный тел.</string>
+    <string name="client_name">Ваше имя</string>
+    <string name="pickup_time">Время подачи</string>
+    <string name="now">Сейчас</string>
 
 </resources>

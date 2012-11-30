@@ -31,7 +31,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.taxisoft.taxiorder.OrderFromActivity"
+            android:name="com.taxisoft.taxiorder.OrderActivity"
             android:label="@string/creating_order" >
         </activity>
     </application>

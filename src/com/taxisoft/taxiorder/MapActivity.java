@@ -53,6 +53,7 @@ import android.widget.ImageButton;
 
 public class MapActivity extends Activity implements OnClickListener, OnMapListener, GeoCodeListener, OnBalloonListener, OnMyLocationListener{
 
+	MapView mMapView;
     MapController mMapController;
     OverlayManager mOverlayManager;
     Overlay mOverlay;
@@ -87,15 +88,15 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_map);
 		
-        final MapView mapView = (MapView) findViewById(R.id.map);
+        mMapView = (MapView)findViewById(R.id.map);
 
-        mMapController = mapView.getMapController();
+        mMapController = mMapView.getMapController();
         
-        mapView.showBuiltInScreenButtons(true);
+        mMapView.showBuiltInScreenButtons(true);
         
         mOverlayManager = mMapController.getOverlayManager();
-        mOverlayManager.getMyLocation().setEnabled(true);
-        mOverlayManager.getMyLocation().addMyLocationListener(this);
+        //mOverlayManager.getMyLocation().setEnabled(true);
+        //mOverlayManager.getMyLocation().addMyLocationListener(this);
 
         mOverlay = new Overlay(mMapController);
         // Add the layer to the map
@@ -118,8 +119,10 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
         Drawable dr = getResources().getDrawable(R.drawable.passenger);
         Bitmap bitmap = ((BitmapDrawable)dr).getBitmap();
         mMePic = new BitmapDrawable(getResources(), Bitmap.createScaledBitmap(bitmap, (int)px, (int)px, true));
+        
+        MyLocationUtils.prepareLocationListener(this);
     }
-
+    
     public void createTaxi(Overlay overlay, TaxiData taxiData)
     {
         float px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 28, getResources().getDisplayMetrics());
@@ -191,6 +194,7 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
 
 		int reason = getIntent().getIntExtra("Reason", INTENT_SHOW_ALL_TAXIES);
     	SharedPreferences settings = getSharedPreferences("TaxiPrefs", MODE_PRIVATE);
+		mMapView.setVisibility(View.VISIBLE);
 		if (reason == INTENT_SHOW_ALL_TAXIES)
 		{
 			mBtnOrder.setVisibility(View.VISIBLE);
@@ -215,11 +219,10 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
 		{
 			mBtnOrder.setVisibility(View.GONE);
 			mBtnSettings.setVisibility(View.GONE);
-			if (mMyLocation != null)
+			mMapView.setVisibility(View.GONE);
+			if (MyLocationUtils.storedLocation != null)
 			{
-				mMapController.getOverlayManager().getMyLocation().findMe();				
-				showMe(mMyLocation);
-				mMapController.getDownloader().getGeoCode(this, mMyLocation);
+				mMapController.getDownloader().getGeoCode(this, new GeoPoint(MyLocationUtils.storedLocation.getLatitude(), MyLocationUtils.storedLocation.getLongitude()));
 			}
 			else
 			{
@@ -251,6 +254,7 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
 	        			taxies.add(taxiData);
 	        		}
 	        	}
+	        	// FIXME: здесь почему-то валится иногда ArrayIndexOutOfBoundsException
 	        	eventType = mPositionsResponseParser.nextTag();
 	        }
 						
@@ -341,7 +345,7 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
 	public void onClick(View v) {
 		if (v == mBtnOrder)
 		{
-			Intent intent = new Intent(this, OrderFromActivity.class);
+			Intent intent = new Intent(this, OrderActivity.class);
 			startActivity(intent);
 		}
 	}
@@ -355,11 +359,17 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
 		}
 	}
 	
+//	public static void getGeoCode(GeoCodeListener listener, double lat, double lon)
+//	{
+//		mMapController.getDownloader().getGeoCode(listener, new GeoPoint(lat, lon));
+//	}
+	
 	@Override
 	public boolean onFinishGeoCode(GeoCode geoCode) {
 		int reason = getIntent().getIntExtra("Reason", INTENT_SHOW_ALL_TAXIES);
 
-		if (reason == INTENT_SHOW_ON_THE_MAP)
+		if (reason == INTENT_SHOW_ON_THE_MAP ||
+			reason == INTENT_CURRENT_LOCATION)
 		{
 			Intent resultIntent = new Intent();
 			if (geoCode.getKind().equals(GeoCode.OBJECT_KIND_STREET) ||
@@ -370,12 +380,6 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
 				setResult(RESULT_OK, resultIntent);
 				finish();
 			}
-		}
-		else if (reason == INTENT_CURRENT_LOCATION)
-		{
-			mMyGeoCode = geoCode;
-			mMeBalloon.setText(mMyGeoCode.getTitle());
-			mMeBalloon.setVisible(true);
 		}
 		return true;
 	}	

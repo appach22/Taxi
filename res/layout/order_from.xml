@@ -1,0 +1,110 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:paddingBottom="6dp"
+    android:paddingLeft="36dp"
+    android:paddingRight="6dp"
+    android:paddingTop="12dp"
+    tools:context=".OrderFromActivity" >
+
+    <LinearLayout
+        android:id="@+id/linearLayout1"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true" >
+
+        <Button
+            android:id="@+id/btnCurrentLocationFrom"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:layout_weight="1"
+            android:text="@string/current_location" />
+
+        <Button
+            android:id="@+id/btnShowOnTheMapFrom"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:layout_weight="1"
+            android:text="@string/show_on_the_map" />
+    </LinearLayout>
+
+    <AutoCompleteTextView
+        android:id="@+id/edtStreetFrom"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/linearLayout1"
+        android:layout_toRightOf="@+id/tvStreetFrom"
+        android:ems="13"
+        android:maxLines="1" >
+
+        <requestFocus />
+    </AutoCompleteTextView>
+
+    <TextView
+        android:id="@+id/tvStreetFrom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/edtStreetFrom"
+        android:layout_alignBottom="@+id/edtStreetFrom"
+        android:layout_alignParentLeft="true"
+        android:text="@string/street" />
+
+    <EditText
+        android:id="@+id/edtHouseFrom"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/edtStreetFrom"
+        android:layout_below="@+id/edtStreetFrom"
+        android:layout_toLeftOf="@+id/tvEntranceFrom"
+        android:ems="8"
+        android:maxEms="8"
+        android:maxLines="1" />
+
+    <TextView
+        android:id="@+id/tvHouseFrom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/edtHouseFrom"
+        android:layout_alignBottom="@+id/edtHouseFrom"
+        android:layout_alignParentLeft="true"
+        android:text="@string/house" />
+
+    <TextView
+        android:id="@+id/tvEntranceFrom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/edtHouseFrom"
+        android:layout_alignBottom="@+id/edtHouseFrom"
+        android:layout_toLeftOf="@+id/edtEntranceFrom"
+        android:text="@string/entrance" />
+
+    <EditText
+        android:id="@+id/edtEntranceFrom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/tvEntranceFrom"
+        android:layout_alignBottom="@+id/tvEntranceFrom"
+        android:layout_alignParentRight="true"
+        android:ems="2"
+        android:inputType="number"
+        android:maxEms="2"
+        android:maxLines="1" />
+
+    <TextView
+        android:id="@+id/tvOtherLandmarkFrom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/edtHouseFrom"
+        android:text="@string/other_landmark" />
+
+    <EditText
+        android:id="@+id/edtOtherLandmarkFrom"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/tvOtherLandmarkFrom"
+        android:ems="15" />
+
+</RelativeLayout>

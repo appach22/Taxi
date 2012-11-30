@@ -1,34 +1,28 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".OrderFromActivity" >
-
-    <TextView
-        android:id="@+id/txtFrom"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentTop="true"
-        android:text="@string/from"
-        android:textAppearance="?android:attr/textAppearanceMedium" />
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:paddingBottom="6dp"
+    android:paddingLeft="36dp"
+    android:paddingRight="6dp"
+    android:paddingTop="12dp" >
+<!--   tools:context=".OrderFromActivity" > -->
 
     <LinearLayout
-        android:id="@+id/linearLayout1"
+        android:id="@+id/linearLayout2"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_below="@+id/txtFrom" >
+        android:layout_alignParentLeft="true" >
 
         <Button
-            android:id="@+id/btnCurrentLocation"
+            android:id="@+id/btnCurrentLocationTo"
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
             android:layout_weight="1"
             android:text="@string/current_location" />
 
         <Button
-            android:id="@+id/btnShowOnTheMap"
+            android:id="@+id/btnShowOnTheMapTo"
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
             android:layout_weight="1"
@@ -36,11 +30,11 @@
     </LinearLayout>
 
     <AutoCompleteTextView
-        android:id="@+id/edtStreetFrom"
+        android:id="@+id/edtStreetTo"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/linearLayout1"
-        android:layout_toRightOf="@+id/tvStreetFrom"
+        android:layout_below="@+id/linearLayout2"
+        android:layout_toRightOf="@+id/tvStreetTo"
         android:ems="13"
         android:maxLines="1" >
 
@@ -48,49 +42,49 @@
     </AutoCompleteTextView>
 
     <TextView
-        android:id="@+id/tvStreetFrom"
+        android:id="@+id/tvStreetTo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignBaseline="@+id/edtStreetFrom"
-        android:layout_alignBottom="@+id/edtStreetFrom"
+        android:layout_alignBaseline="@+id/edtStreetTo"
+        android:layout_alignBottom="@+id/edtStreetTo"
         android:layout_alignParentLeft="true"
         android:text="@string/street" />
 
     <EditText
-        android:id="@+id/edtHouse"
+        android:id="@+id/edtHouseTo"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:layout_alignLeft="@+id/edtStreetFrom"
-        android:layout_below="@+id/edtStreetFrom"
-        android:layout_toLeftOf="@+id/tvEntrance"
+        android:layout_alignLeft="@+id/edtStreetTo"
+        android:layout_below="@+id/edtStreetTo"
+        android:layout_toLeftOf="@+id/tvEntranceTo"
         android:ems="8"
         android:maxEms="8"
         android:maxLines="1" />
 
     <TextView
-        android:id="@+id/tvHouse"
+        android:id="@+id/tvHouseTo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignBaseline="@+id/edtHouse"
-        android:layout_alignBottom="@+id/edtHouse"
+        android:layout_alignBaseline="@+id/edtHouseTo"
+        android:layout_alignBottom="@+id/edtHouseTo"
         android:layout_alignParentLeft="true"
         android:text="@string/house" />
 
     <TextView
-        android:id="@+id/tvEntrance"
+        android:id="@+id/tvEntranceTo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignBaseline="@+id/edtHouse"
-        android:layout_alignBottom="@+id/edtHouse"
-        android:layout_toLeftOf="@+id/edtEntrance"
+        android:layout_alignBaseline="@+id/edtHouseTo"
+        android:layout_alignBottom="@+id/edtHouseTo"
+        android:layout_toLeftOf="@+id/edtEntranceTo"
         android:text="@string/entrance" />
 
     <EditText
-        android:id="@+id/edtEntrance"
+        android:id="@+id/edtEntranceTo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignBaseline="@+id/tvEntrance"
-        android:layout_alignBottom="@+id/tvEntrance"
+        android:layout_alignBaseline="@+id/tvEntranceTo"
+        android:layout_alignBottom="@+id/tvEntranceTo"
         android:layout_alignParentRight="true"
         android:ems="2"
         android:inputType="number"
@@ -98,27 +92,19 @@
         android:maxLines="1" />
 
     <TextView
-        android:id="@+id/tvOtherLandmark"
+        android:id="@+id/tvOtherLandmarkTo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
-        android:layout_below="@+id/edtHouse"
+        android:layout_below="@+id/edtHouseTo"
         android:text="@string/other_landmark" />
 
     <EditText
-        android:id="@+id/edtOtherLandmark"
+        android:id="@+id/edtOtherLandmarkTo"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
-        android:layout_below="@+id/tvOtherLandmark"
+        android:layout_below="@+id/tvOtherLandmarkTo"
         android:ems="15" />
-
-    <Button
-        android:id="@+id/btnNext1"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentLeft="true"
-        android:text="@string/next_button" />
 
 </RelativeLayout>
