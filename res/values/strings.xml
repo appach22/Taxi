@@ -23,5 +23,6 @@
     <string name="client_name">Ваше имя</string>
     <string name="pickup_time">Время подачи</string>
     <string name="now">Сейчас</string>
+    <string name="location_is_unknown">Текущее местоположение неизвестно!</string>
 
 </resources>

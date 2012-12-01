@@ -50,6 +50,7 @@ import android.view.Menu;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageButton;
+import android.widget.Toast;
 
 public class MapActivity extends Activity implements OnClickListener, OnMapListener, GeoCodeListener, OnBalloonListener, OnMyLocationListener{
 
@@ -125,12 +126,12 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
     
     public void createTaxi(Overlay overlay, TaxiData taxiData)
     {
-        float px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 28, getResources().getDisplayMetrics());
+        float px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 32, getResources().getDisplayMetrics());
         BitmapDrawable dr = (BitmapDrawable)getResources().getDrawable(R.drawable.balloon);
         BitmapDrawable taxiPic = new BitmapDrawable(getResources(), Bitmap.createScaledBitmap(dr.getBitmap(), (int)px, (int)px, true));
         Paint paint = new Paint(); 
         paint.setColor(Color.WHITE);
-        paint.setTextSize(12f);
+        paint.setTextSize(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getResources().getDisplayMetrics()));
         paint.setAntiAlias(true);
         paint.setFakeBoldText(true);
         paint.setShadowLayer(2f, 0, 0, Color.BLACK);
@@ -226,7 +227,7 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
 			}
 			else
 			{
-				//TODO
+				Toast.makeText(this, R.string.location_is_unknown, Toast.LENGTH_SHORT).show();
 			}
 		}
     };
