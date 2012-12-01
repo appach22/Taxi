@@ -5,20 +5,17 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Date;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
-import com.taxisoft.taxiorder.MapActivity.TaxiData;
 
-import android.opengl.Visibility;
 import android.os.Bundle;
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
@@ -34,6 +31,7 @@ import android.widget.ExpandableListAdapter;
 import android.widget.ExpandableListView;
 import android.widget.TextView;
 import android.widget.TimePicker;
+import android.widget.Toast;
 
 public class OrderActivity extends Activity implements OnClickListener, OnCheckedChangeListener {
 
@@ -57,22 +55,35 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 	final int groupCaptions[] = {R.string.from, R.string.to, R.string.time_and_contacts};
 	final int groupViews[] = {R.layout.order_from, R.layout.order_to, R.layout.order_other};
 	
+	final long MILLISECONDS_IN_MONTH = 30L * 24 * 3600 * 1000;
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_order);
-		
-		URL streetsUrl;
-		String allStreets = "";
-		try {
-			streetsUrl = new URL("http://79.175.38.54:4481/get_streets.php");
-			allStreets = parseStreetsResponse(streetsUrl.openStream()); 
-		} catch (MalformedURLException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 
+		String allStreets = "";
+
+    	SharedPreferences settings = getSharedPreferences("TaxiPrefs", MODE_PRIVATE);
+    	Date lastStreetsSyncDate = new Date(settings.getLong("StreetsSyncTime", 0));
+    	if ((new Date()).getTime() - lastStreetsSyncDate.getTime() < MILLISECONDS_IN_MONTH)
+    		allStreets = settings.getString("Streets", "");	
+    	else
+    	{
+			URL streetsUrl;
+			try {
+				streetsUrl = new URL("http://79.175.38.54:4481/get_streets.php");
+				allStreets = parseStreetsResponse(streetsUrl.openStream());
+				SharedPreferences.Editor editor = settings.edit();
+				editor.putLong("StreetsSyncTime", (new Date()).getTime());
+				editor.putString("Streets", allStreets);
+				editor.commit();
+			} catch (MalformedURLException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+    	}
 		PrepareOrderForm(allStreets.split("\\|"));
 	}
 
@@ -119,10 +130,8 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 					yearPicker = field.get(mDate);
 					((View)yearPicker).setVisibility(View.GONE);
 				} catch (IllegalArgumentException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} catch (IllegalAccessException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -198,7 +207,7 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 			}
 			else
 			{
-				// TODO: show error message
+				Toast.makeText(this, R.string.location_is_unknown, Toast.LENGTH_SHORT).show();
 			}
 		}
 	}
