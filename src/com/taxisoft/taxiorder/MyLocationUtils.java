@@ -37,10 +37,16 @@ public class MyLocationUtils {
           };
 
         // Register the listener with the Location Manager to receive location updates
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 30000, 50, locationListener);        	 
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 30000, 50, locationListener);    
-    	
-        storedLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        try {
+        	locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 30000, 50, locationListener);
+        }
+        catch( IllegalArgumentException e ) { ; }
+        
+        try {
+        	locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 30000, 50, locationListener);    
+        	storedLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        }
+        catch( IllegalArgumentException e ) { ; }
     }
     
     public static void stopLocationListener()

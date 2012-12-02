@@ -207,14 +207,12 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
 	            	updateTaxiesPositions();
 	            }
 	    	}, 0, 5000);
-	    	mMapController.setPositionNoAnimationTo(new GeoPoint(settings.getFloat("Latitude", 51.735262f), settings.getFloat("Longitude", 36.185569f)), settings.getFloat("Scale", 0.0f));
 		}
 		else if (reason == INTENT_SHOW_ON_THE_MAP)
 		{
 			mBtnOrder.setVisibility(View.GONE);
 			mBtnSettings.setVisibility(View.GONE);
 			mMapController.addMapListener(this);
-	    	mMapController.setPositionNoAnimationTo(new GeoPoint(settings.getFloat("Latitude", 51.735262f), settings.getFloat("Longitude", 36.185569f)), settings.getFloat("Scale", 0.0f));
 		}
 		else if (reason == INTENT_CURRENT_LOCATION)
 		{
@@ -230,6 +228,7 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
 				Toast.makeText(this, R.string.location_is_unknown, Toast.LENGTH_SHORT).show();
 			}
 		}
+    	mMapController.setPositionNoAnimationTo(new GeoPoint(settings.getFloat("Latitude", 51.735262f), settings.getFloat("Longitude", 36.185569f)), settings.getFloat("Scale", 0.0f));
     };
     
     private List<TaxiData> parsePositionsResponse(InputStream response)

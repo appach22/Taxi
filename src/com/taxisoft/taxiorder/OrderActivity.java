@@ -13,9 +13,12 @@ import org.xmlpull.v1.XmlPullParserFactory;
 
 
 import android.os.Bundle;
+import android.os.Handler;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
@@ -47,6 +50,9 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 	
 	TimePicker mTime;
 	DatePicker mDate;
+	
+	AutoCompleteTextView mStreetFrom = null;
+	AutoCompleteTextView mStreetTo = null;
 
 	public static final int GROUP_FROM = 0;
 	public static final int GROUP_TO = 1;
@@ -61,43 +67,67 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_order);
-
-		String allStreets = "";
-
-    	SharedPreferences settings = getSharedPreferences("TaxiPrefs", MODE_PRIVATE);
-    	Date lastStreetsSyncDate = new Date(settings.getLong("StreetsSyncTime", 0));
-    	if ((new Date()).getTime() - lastStreetsSyncDate.getTime() < MILLISECONDS_IN_MONTH)
-    		allStreets = settings.getString("Streets", "");	
-    	else
-    	{
-			URL streetsUrl;
-			try {
-				streetsUrl = new URL("http://79.175.38.54:4481/get_streets.php");
-				allStreets = parseStreetsResponse(streetsUrl.openStream());
-				SharedPreferences.Editor editor = settings.edit();
-				editor.putLong("StreetsSyncTime", (new Date()).getTime());
-				editor.putString("Streets", allStreets);
-				editor.commit();
-			} catch (MalformedURLException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-    	}
-		PrepareOrderForm(allStreets.split("\\|"));
+		
+		startLoadingStreets(); // Asynchronous method
+	    prepareOrderForm();
 	}
 
-	private void PrepareOrderForm(String[] streets)
+	private void startLoadingStreets()
+	{
+		final Context context = this;
+		final Handler uiHandler = new Handler();
+		
+	    new Thread(new Runnable() {
+	        public void run() {
+        		String allStreets = "";
+            	SharedPreferences settings = getSharedPreferences("TaxiPrefs", MODE_PRIVATE);
+            	Date lastStreetsSyncDate = new Date(settings.getLong("StreetsSyncTime", 0));
+            	if ((new Date()).getTime() - lastStreetsSyncDate.getTime() < MILLISECONDS_IN_MONTH)
+            		allStreets = settings.getString("Streets", "");	
+            	else
+            	{
+        			URL streetsUrl;
+        			try {
+        				streetsUrl = new URL("http://79.175.38.54:4481/get_streets.php");
+        				allStreets = parseStreetsResponse(streetsUrl.openStream());
+        				SharedPreferences.Editor editor = settings.edit();
+        				editor.putLong("StreetsSyncTime", (new Date()).getTime());
+        				editor.putString("Streets", allStreets);
+        				editor.commit();
+        			} catch (MalformedURLException e) {
+        				e.printStackTrace();
+        			} catch (IOException e) {
+        				e.printStackTrace();
+        			}
+            	}
+			    final ArrayAdapter<String> adapter = new ArrayAdapter<String>(context, android.R.layout.simple_dropdown_item_1line, allStreets.split("\\|"));
+			    while (mStreetFrom == null || mStreetTo == null)
+					try {
+						synchronized(this){
+		                    wait(10);
+		                }
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+	            uiHandler.post(new Runnable() {
+	                public void run() {
+	                	mStreetFrom.setAdapter(adapter);
+	                	mStreetTo.setAdapter(adapter);
+	                }
+	            });
+	        }
+	    }).start();    		
+	}
+	
+	private void prepareOrderForm()
 	{
 		View groupContent[] = new View[groupViews.length];
         LayoutInflater infalInflater = (LayoutInflater)getLayoutInflater();
-	    ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_dropdown_item_1line, streets);
         
         // Start group
         groupContent[GROUP_FROM] = infalInflater.inflate(groupViews[GROUP_FROM], null);
-	    AutoCompleteTextView textView = (AutoCompleteTextView)groupContent[GROUP_FROM].findViewById(R.id.edtStreetFrom);
-	    textView.setAdapter(adapter);
-	    textView.setThreshold(1);
+	    mStreetFrom = (AutoCompleteTextView)groupContent[GROUP_FROM].findViewById(R.id.edtStreetFrom);
+	    mStreetFrom.setThreshold(1);
 	    mBtnCurrentLocationFrom = (Button)groupContent[GROUP_FROM].findViewById(R.id.btnCurrentLocationFrom); 
 	    mBtnCurrentLocationFrom.setOnClickListener(this);
 	    mBtnShowOnTheMapFrom = (Button)groupContent[GROUP_FROM].findViewById(R.id.btnShowOnTheMapFrom); 
@@ -105,9 +135,8 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 	    
         // Finish group
         groupContent[GROUP_TO] = infalInflater.inflate(groupViews[GROUP_TO], null);
-	    textView = (AutoCompleteTextView)groupContent[GROUP_TO].findViewById(R.id.edtStreetTo);
-	    textView.setAdapter(adapter);
-	    textView.setThreshold(1);
+        mStreetTo = (AutoCompleteTextView)groupContent[GROUP_TO].findViewById(R.id.edtStreetTo);
+        mStreetTo.setThreshold(1);
 	    mBtnCurrentLocationTo = (Button)groupContent[GROUP_TO].findViewById(R.id.btnCurrentLocationTo); 
 	    mBtnCurrentLocationTo.setOnClickListener(this);
 	    mBtnShowOnTheMapTo = (Button)groupContent[GROUP_TO].findViewById(R.id.btnShowOnTheMapTo); 
