@@ -24,5 +24,10 @@
     <string name="pickup_time">Время подачи</string>
     <string name="now">Сейчас</string>
     <string name="location_is_unknown">Текущее местоположение неизвестно!</string>
-
+    <string name="kursk">Курск</string>
+    <string name="title_error">Ошибка</string>
+    <string name="msg_order_data_incomplete">Недостаточно данных для отправки заказа</string>
+    <string name="wait_for_order_submit">Отправляем Ваш заказ...</string>
+    <string name="be_more_precise">Поточнее, пожалуйста!</string>
+    
 </resources>

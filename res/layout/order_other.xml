@@ -48,7 +48,8 @@
         android:layout_below="@+id/tpPickupTime"
         android:layout_toRightOf="@+id/tvPhoneNumber"
         android:ems="10"
-        android:inputType="phone" >
+        android:inputType="phone"
+        android:text="123456" >
 
         <requestFocus />
     </EditText>

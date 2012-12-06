@@ -14,6 +14,11 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
+import com.googlecode.androidannotations.annotations.AfterViews;
+import com.googlecode.androidannotations.annotations.Click;
+import com.googlecode.androidannotations.annotations.EActivity;
+import com.googlecode.androidannotations.annotations.LongClick;
+import com.googlecode.androidannotations.annotations.ViewById;
 import com.taxisoft.taxiorder.R;
 
 import ru.yandex.yandexmapkit.MapController;
@@ -44,6 +49,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -52,9 +58,16 @@ import android.view.View.OnClickListener;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
-public class MapActivity extends Activity implements OnClickListener, OnMapListener, GeoCodeListener, OnBalloonListener, OnMyLocationListener{
+@EActivity(R.layout.activity_map)
+public class MapActivity extends Activity implements OnMapListener, GeoCodeListener, OnBalloonListener, OnMyLocationListener{
 
+	@ViewById(R.id.map)
 	MapView mMapView;
+    @ViewById
+    ImageButton btnOrder;
+    @ViewById
+    ImageButton btnSettings;
+	
     MapController mMapController;
     OverlayManager mOverlayManager;
     Overlay mOverlay;
@@ -66,7 +79,6 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
     Timer mTaxiesCoordsTimer;
     XmlPullParser mPositionsResponseParser;
     boolean mIsLoggedIn = false;
-    ImageButton mBtnOrder, mBtnSettings;
 
     public static final int INTENT_SHOW_ALL_TAXIES = 0;
     public static final int INTENT_SHOW_ON_THE_MAP = 1;
@@ -84,13 +96,9 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
     	}
     }
 
-    @Override
-	protected void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_map);
-		
-        mMapView = (MapView)findViewById(R.id.map);
-
+    @AfterViews
+    void InitViews()
+    {
         mMapController = mMapView.getMapController();
         
         mMapView.showBuiltInScreenButtons(true);
@@ -102,6 +110,12 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
         mOverlay = new Overlay(mMapController);
         // Add the layer to the map
         mOverlayManager.addOverlay(mOverlay);
+    }
+    
+    @Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+
 		
         XmlPullParserFactory factory;
 		try {
@@ -111,10 +125,6 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
 		} catch (XmlPullParserException e) {
 		}
 		
-		mBtnOrder = (ImageButton)findViewById(R.id.btnOrder); 
-		mBtnOrder.setOnClickListener(this);
-		mBtnSettings = (ImageButton)findViewById(R.id.btnSettings); 
-		mBtnSettings.setOnClickListener(this);
 
         float px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 30, getResources().getDisplayMetrics());
         Drawable dr = getResources().getDrawable(R.drawable.passenger);
@@ -198,26 +208,27 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
 		mMapView.setVisibility(View.VISIBLE);
 		if (reason == INTENT_SHOW_ALL_TAXIES)
 		{
-			mBtnOrder.setVisibility(View.VISIBLE);
-			mBtnSettings.setVisibility(View.VISIBLE);
+			btnOrder.setVisibility(View.VISIBLE);
+			btnSettings.setVisibility(View.VISIBLE);
 	    	mTaxiesCoordsTimer = new Timer();
 	    	mTaxiesCoordsTimer.scheduleAtFixedRate(new TimerTask() {
 	            @Override
 	            public void run() {
+	            	// FIXME: сделать thread-safe!!!
 	            	updateTaxiesPositions();
 	            }
 	    	}, 0, 5000);
 		}
 		else if (reason == INTENT_SHOW_ON_THE_MAP)
 		{
-			mBtnOrder.setVisibility(View.GONE);
-			mBtnSettings.setVisibility(View.GONE);
+			btnOrder.setVisibility(View.GONE);
+			btnSettings.setVisibility(View.GONE);
 			mMapController.addMapListener(this);
 		}
 		else if (reason == INTENT_CURRENT_LOCATION)
 		{
-			mBtnOrder.setVisibility(View.GONE);
-			mBtnSettings.setVisibility(View.GONE);
+			btnOrder.setVisibility(View.GONE);
+			btnSettings.setVisibility(View.GONE);
 			mMapView.setVisibility(View.GONE);
 			if (MyLocationUtils.storedLocation != null)
 			{
@@ -270,7 +281,8 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
     {
     	List<TaxiData> newTaxies;
     	try {
-			URL taxiesUrl = new URL("http://79.175.38.54:4481/get_gps.php");
+			//URL taxiesUrl = new URL("http://79.175.38.54:4481/get_gps.php");
+			URL taxiesUrl = new URL("http://79.175.38.54:80/get_gps.php");
 			newTaxies = parsePositionsResponse(taxiesUrl.openStream());
 			if (newTaxies == null)
 				return;
@@ -341,15 +353,21 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
         	return null;
     }
 
-	@Override
-	public void onClick(View v) {
-		if (v == mBtnOrder)
-		{
-			Intent intent = new Intent(this, OrderActivity.class);
-			startActivity(intent);
-		}
+	@Click(R.id.btnOrder)
+	public void placeOrder()
+	{
+		Intent intent = new Intent(this, OrderActivity_.class);
+		startActivity(intent);
 	}
 
+	@LongClick(R.id.map)
+	void clk()
+	{
+		Log.d("MapView", "long click");
+			//ScreenPoint sPoint = new ScreenPoint(event.getX(), event.getY());
+			//mMapController.getDownloader().getGeoCode(this, mMapController.getGeoPoint(sPoint));
+	}
+	
 	@Override
 	public void onMapActionEvent(MapEvent event) {
 		if (event.getMsg() == MapEvent.MSG_LONG_PRESS)
@@ -372,14 +390,18 @@ public class MapActivity extends Activity implements OnClickListener, OnMapListe
 			reason == INTENT_CURRENT_LOCATION)
 		{
 			Intent resultIntent = new Intent();
-			if (geoCode.getKind().equals(GeoCode.OBJECT_KIND_STREET) ||
-				geoCode.getKind().equals(GeoCode.OBJECT_KIND_HOUSE))
+			if (geoCode != null && (geoCode.getKind().equals(GeoCode.OBJECT_KIND_STREET) ||
+									geoCode.getKind().equals(GeoCode.OBJECT_KIND_HOUSE)))
 			{
 				resultIntent.putExtra("Street", geoCode.getTitle());
 				resultIntent.putExtra("City", geoCode.getSubtitle());
 				setResult(RESULT_OK, resultIntent);
 				finish();
 			}
+			else
+				// TODO: почему не отображается? Наверное, потому что в др. потоке находимся...
+				Toast.makeText(this, R.string.be_more_precise, Toast.LENGTH_LONG).show();
+				
 		}
 		return true;
 	}	

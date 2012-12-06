@@ -5,20 +5,25 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
 
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.util.Log;
+import android.util.TimeUtils;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
@@ -30,46 +35,66 @@ import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.DatePicker;
+import android.widget.EditText;
 import android.widget.ExpandableListAdapter;
 import android.widget.ExpandableListView;
-import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
-public class OrderActivity extends Activity implements OnClickListener, OnCheckedChangeListener {
+import com.googlecode.androidannotations.annotations.AfterViews;
+import com.googlecode.androidannotations.annotations.Click;
+import com.googlecode.androidannotations.annotations.EActivity;
+import com.googlecode.androidannotations.annotations.ViewById;
 
+@EActivity(R.layout.activity_order)
+public class OrderActivity extends Activity implements OnClickListener, OnCheckedChangeListener {
+	
 	private static final int REQUEST_CODE_CURRENT_LOCATION_START = 1;
 	private static final int REQUEST_CODE_CURRENT_LOCATION_FINISH = 2;
 	private static final int REQUEST_CODE_SHOW_START_ON_THE_MAP = 3;
 	private static final int REQUEST_CODE_SHOW_FINISH_ON_THE_MAP = 4;
 
-	Button mBtnCurrentLocationFrom;
-	Button mBtnShowOnTheMapFrom;
-	Button mBtnCurrentLocationTo;
-	Button mBtnShowOnTheMapTo;
+	Button btnCurrentLocationFrom;
+	Button btnShowOnTheMapFrom;
+	Button btnCurrentLocationTo;
+	Button btnShowOnTheMapTo;
+	
+	@ViewById
+	ExpandableListView lvOrder;
+	@ViewById
+	Button btnPlaceOrder;
 	
 	TimePicker mTime;
 	DatePicker mDate;
-	
+
+	String mCity;
+
 	AutoCompleteTextView mStreetFrom = null;
 	AutoCompleteTextView mStreetTo = null;
+	
+	Order mOrder = null;
+	
+	AlertDialog.Builder mDialog;
 
 	public static final int GROUP_FROM = 0;
 	public static final int GROUP_TO = 1;
 	public static final int GROUP_OTHER = 2;
 	
-	final int groupCaptions[] = {R.string.from, R.string.to, R.string.time_and_contacts};
-	final int groupViews[] = {R.layout.order_from, R.layout.order_to, R.layout.order_other};
-	
+	final int mGroupCaptions[] = {R.string.from, R.string.to, R.string.time_and_contacts};
+	final int mGroupViews[] = {R.layout.order_from, R.layout.order_to, R.layout.order_other};
+	View mGroupContents[] = new View[mGroupViews.length];
+
 	final long MILLISECONDS_IN_MONTH = 30L * 24 * 3600 * 1000;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_order);
-		
+		//setContentView(R.layout.activity_order);
+
+		mCity = getResources().getString(R.string.kursk);
+		mDialog = new AlertDialog.Builder(this);
 		startLoadingStreets(); // Asynchronous method
-	    prepareOrderForm();
+	    //prepareOrderForm();
 	}
 
 	private void startLoadingStreets()
@@ -88,7 +113,8 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
             	{
         			URL streetsUrl;
         			try {
-        				streetsUrl = new URL("http://79.175.38.54:4481/get_streets.php");
+        				//streetsUrl = new URL("http://79.175.38.54:4481/get_streets.php");
+        				streetsUrl = new URL("http://79.175.38.54:80/get_streets.php");
         				allStreets = parseStreetsResponse(streetsUrl.openStream());
         				SharedPreferences.Editor editor = settings.edit();
         				editor.putLong("StreetsSyncTime", (new Date()).getTime());
@@ -119,37 +145,37 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 	    }).start();    		
 	}
 	
-	private void prepareOrderForm()
+	@AfterViews
+	void prepareOrderForm()
 	{
-		View groupContent[] = new View[groupViews.length];
         LayoutInflater infalInflater = (LayoutInflater)getLayoutInflater();
         
         // Start group
-        groupContent[GROUP_FROM] = infalInflater.inflate(groupViews[GROUP_FROM], null);
-	    mStreetFrom = (AutoCompleteTextView)groupContent[GROUP_FROM].findViewById(R.id.edtStreetFrom);
+        mGroupContents[GROUP_FROM] = infalInflater.inflate(mGroupViews[GROUP_FROM], null);
+	    mStreetFrom = (AutoCompleteTextView)mGroupContents[GROUP_FROM].findViewById(R.id.edtStreetFrom);
 	    mStreetFrom.setThreshold(1);
-	    mBtnCurrentLocationFrom = (Button)groupContent[GROUP_FROM].findViewById(R.id.btnCurrentLocationFrom); 
-	    mBtnCurrentLocationFrom.setOnClickListener(this);
-	    mBtnShowOnTheMapFrom = (Button)groupContent[GROUP_FROM].findViewById(R.id.btnShowOnTheMapFrom); 
-	    mBtnShowOnTheMapFrom.setOnClickListener(this);
+	    btnCurrentLocationFrom = (Button)mGroupContents[GROUP_FROM].findViewById(R.id.btnCurrentLocationFrom); 
+	    btnCurrentLocationFrom.setOnClickListener(this);
+	    btnShowOnTheMapFrom = (Button)mGroupContents[GROUP_FROM].findViewById(R.id.btnShowOnTheMapFrom); 
+	    btnShowOnTheMapFrom.setOnClickListener(this);
 	    
         // Finish group
-        groupContent[GROUP_TO] = infalInflater.inflate(groupViews[GROUP_TO], null);
-        mStreetTo = (AutoCompleteTextView)groupContent[GROUP_TO].findViewById(R.id.edtStreetTo);
+        mGroupContents[GROUP_TO] = infalInflater.inflate(mGroupViews[GROUP_TO], null);
+        mStreetTo = (AutoCompleteTextView)mGroupContents[GROUP_TO].findViewById(R.id.edtStreetTo);
         mStreetTo.setThreshold(1);
-	    mBtnCurrentLocationTo = (Button)groupContent[GROUP_TO].findViewById(R.id.btnCurrentLocationTo); 
-	    mBtnCurrentLocationTo.setOnClickListener(this);
-	    mBtnShowOnTheMapTo = (Button)groupContent[GROUP_TO].findViewById(R.id.btnShowOnTheMapTo); 
-	    mBtnShowOnTheMapTo.setOnClickListener(this);
+	    btnCurrentLocationTo = (Button)mGroupContents[GROUP_TO].findViewById(R.id.btnCurrentLocationTo); 
+	    btnCurrentLocationTo.setOnClickListener(this);
+	    btnShowOnTheMapTo = (Button)mGroupContents[GROUP_TO].findViewById(R.id.btnShowOnTheMapTo); 
+	    btnShowOnTheMapTo.setOnClickListener(this);
 	    
 	    //Other group
-	    groupContent[GROUP_OTHER] = infalInflater.inflate(groupViews[GROUP_OTHER], null);
-	    CheckBox cbNow = (CheckBox)groupContent[GROUP_OTHER].findViewById(R.id.cbNow);
+	    mGroupContents[GROUP_OTHER] = infalInflater.inflate(mGroupViews[GROUP_OTHER], null);
+	    CheckBox cbNow = (CheckBox)mGroupContents[GROUP_OTHER].findViewById(R.id.cbNow);
 	    cbNow.setOnCheckedChangeListener(this);
 	    cbNow.setChecked(true);
-	    mTime = (TimePicker)groupContent[GROUP_OTHER].findViewById(R.id.tpPickupTime);
+	    mTime = (TimePicker)mGroupContents[GROUP_OTHER].findViewById(R.id.tpPickupTime);
 	    mTime.setIs24HourView(true);
-	    mDate = (DatePicker)groupContent[GROUP_OTHER].findViewById(R.id.dpPickupDate);
+	    mDate = (DatePicker)mGroupContents[GROUP_OTHER].findViewById(R.id.dpPickupDate);
     	Field f[] = mDate.getClass().getDeclaredFields();
 		for (Field field : f) {
 			if (field.getName().equals("mYearPicker")) {
@@ -166,13 +192,14 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 			}
 		}
 	    
-	    String captions[] = new String[groupCaptions.length];
-	    for (int i = 0; i < groupCaptions.length; ++i)
-	    	captions[i] = getResources().getString(groupCaptions[i]);
-		ExpandableListAdapter listAdapter = new OrderListAdapter(this, captions, groupContent);
-		ExpandableListView lv = (ExpandableListView)findViewById(R.id.lvOrder);
-		lv.setAdapter(listAdapter);
+	    String captions[] = new String[mGroupCaptions.length];
+	    for (int i = 0; i < mGroupCaptions.length; ++i)
+	    	captions[i] = getResources().getString(mGroupCaptions[i]);
+		ExpandableListAdapter listAdapter = new OrderListAdapter(this, captions, mGroupContents);
+		lvOrder.setAdapter(listAdapter);
 		
+		//mBtnPlaceOrder = (Button)findViewById(R.id.btnPlaceOrder);
+		//btnPlaceOrder.setOnClickListener(this);
 	}
 	
     private String parseStreetsResponse(InputStream response)
@@ -208,28 +235,29 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.layout.order_from, menu);
-		return true;
+		//getMenuInflater().inflate(R.layout.order_from, menu);
+		//return true;
+		return false;
 	}
 
 	@Override
 	public void onClick(View view) {
-		if (view == mBtnShowOnTheMapFrom || view == mBtnShowOnTheMapTo)
+		if (view == btnShowOnTheMapFrom || view == btnShowOnTheMapTo)
 		{
-			Intent intent = new Intent(this, MapActivity.class);
+			Intent intent = new Intent(this, MapActivity_.class);
 			intent. putExtra("Reason", MapActivity.INTENT_SHOW_ON_THE_MAP);
-			if (view == mBtnShowOnTheMapFrom)
+			if (view == btnShowOnTheMapFrom)
 				startActivityForResult(intent, REQUEST_CODE_SHOW_START_ON_THE_MAP);
 			else
 				startActivityForResult(intent, REQUEST_CODE_SHOW_FINISH_ON_THE_MAP);
 		}
-		else if (view == mBtnCurrentLocationFrom || view == mBtnCurrentLocationTo)
+		else if (view == btnCurrentLocationFrom || view == btnCurrentLocationTo)
 		{
 			if (MyLocationUtils.storedLocation != null)
 			{
-				Intent intent = new Intent(this, MapActivity.class);
+				Intent intent = new Intent(this, MapActivity_.class);
 				intent. putExtra("Reason", MapActivity.INTENT_CURRENT_LOCATION);
-				if (view == mBtnCurrentLocationFrom)
+				if (view == btnCurrentLocationFrom)
 					startActivityForResult(intent, REQUEST_CODE_CURRENT_LOCATION_START);
 				else
 					startActivityForResult(intent, REQUEST_CODE_CURRENT_LOCATION_FINISH);
@@ -238,7 +266,90 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 			{
 				Toast.makeText(this, R.string.location_is_unknown, Toast.LENGTH_SHORT).show();
 			}
+		}		
+	}
+	
+
+	private class PlaceOrderTask extends AsyncTask<Void, Void, Void>
+	{
+		private Context context;
+		private ProgressDialog mSubmittingOrderDialog;
+		
+		public PlaceOrderTask(Context ctx)
+		{
+			context = ctx;
 		}
+		
+		protected void onPreExecute()
+		{
+			mSubmittingOrderDialog = ProgressDialog.show(context, "", context.getResources().getString(R.string.wait_for_order_submit), true);
+		}
+		
+		protected Void doInBackground(Void... params)
+		{
+			try
+			{
+				TimeUnit.SECONDS.sleep(5);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			return null;
+		}
+		
+		protected void onPostExecute(Void result)
+		{
+			//super.onPostExecute(result);
+			mSubmittingOrderDialog.dismiss();
+		}
+	}
+	
+	
+	@Click
+	void btnPlaceOrder()
+	{
+		if (mOrder == null)
+			mOrder = new Order();
+		
+		mOrder.mCity = mCity;
+		mOrder.mCustomerName = ((EditText)mGroupContents[GROUP_OTHER].findViewById(R.id.edtClientName)).getText().toString().trim();
+		mOrder.mStreetFrom = ((EditText)mGroupContents[GROUP_FROM].findViewById(R.id.edtStreetFrom)).getText().toString().trim();
+		mOrder.mHouseFrom = ((EditText)mGroupContents[GROUP_FROM].findViewById(R.id.edtHouseFrom)).getText().toString().trim();
+		mOrder.mEntranceFrom = ((EditText)mGroupContents[GROUP_FROM].findViewById(R.id.edtEntranceFrom)).getText().toString().trim();
+		mOrder.mLandmarkFrom = ((EditText)mGroupContents[GROUP_FROM].findViewById(R.id.edtOtherLandmarkFrom)).getText().toString().trim();
+		mOrder.mStreetTo = ((EditText)mGroupContents[GROUP_TO].findViewById(R.id.edtStreetTo)).getText().toString().trim();
+		mOrder.mHouseTo = ((EditText)mGroupContents[GROUP_TO].findViewById(R.id.edtHouseTo)).getText().toString().trim();
+		mOrder.mEntranceTo = ((EditText)mGroupContents[GROUP_TO].findViewById(R.id.edtEntranceTo)).getText().toString().trim();
+		mOrder.mLandmarkTo = ((EditText)mGroupContents[GROUP_TO].findViewById(R.id.edtOtherLandmarkTo)).getText().toString().trim();
+		mOrder.mTime.set(mDate.getYear(), mDate.getMonth(), mDate.getDayOfMonth(), mTime.getCurrentHour(), mTime.getCurrentMinute());
+		mOrder.mPhoneNumber = ((EditText)mGroupContents[GROUP_OTHER].findViewById(R.id.edtPhoneNumber)).getText().toString().trim(); 
+		
+		// TODO: втащить валидацию в AcyncTask. Показывать прогресс...
+		if (!mOrder.validate())
+		{
+			mDialog.setTitle(R.string.title_error);
+			mDialog.setMessage(R.string.msg_order_data_incomplete);
+			mDialog.setPositiveButton(android.R.string.ok, null);
+			mDialog.show();
+			return;
+		}
+
+		new PlaceOrderTask(this).execute();
+		
+/*		mSubmittingOrderDialog = ProgressDialog.show(this, "", getResources().getString(R.string.wait_for_order_submit), true);
+		Thread submitThread = new Thread(new Runnable() {
+			public void run()
+			{
+				try {
+					synchronized(this){
+	                    wait(5000);
+	                }
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				mSubmittingOrderDialog.dismiss();
+			}
+		});
+		submitThread.start();*/
 	}
 	
 	private void ShowStreetAddress(String street, int idStreet, int idHouse)
@@ -246,8 +357,8 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 		String addr[] = street.split(",");
 		for (int i = 0; i < addr.length; ++i)
 			addr[i] = addr[i].trim();
-		TextView edtStreet = (TextView)findViewById(idStreet);
-		TextView edtHouse = (TextView)findViewById(idHouse);
+		EditText edtStreet = (EditText)findViewById(idStreet);
+		EditText edtHouse = (EditText)findViewById(idHouse);
 		if (addr.length > 0)
 			edtStreet.setText(addr[0]);
 		if (addr.length > 1)
