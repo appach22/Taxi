@@ -29,5 +29,8 @@
     <string name="msg_order_data_incomplete">Недостаточно данных для отправки заказа</string>
     <string name="wait_for_order_submit">Отправляем Ваш заказ...</string>
     <string name="be_more_precise">Поточнее, пожалуйста!</string>
+    <string name="title_success">Ура!</string>
+    <string name="msg_order_placed_successfully">Ваш заказ успешно зарегистрирован.</string>
+    <string name="msg_order_place_error">Ошибка размещения заказа.</string>
     
 </resources>

@@ -1,7 +1,10 @@
 package com.taxisoft.taxiorder;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -33,7 +36,9 @@ public class Order {
 	public Calendar mTime;
 	public GeoPoint mPointFrom;
 	public GeoPoint mPointTo;
-    XmlPullParser mGeoCodeResponseParser = null;
+    XmlPullParser mXmlResponseParser = null;
+    
+    private int mID = 0;
 
 	public Order()
 	{
@@ -44,7 +49,7 @@ public class Order {
 		try {
 			factory = XmlPullParserFactory.newInstance();
 	        factory.setNamespaceAware(true);
-	        mGeoCodeResponseParser = factory.newPullParser();
+	        mXmlResponseParser = factory.newPullParser();
 		} catch (XmlPullParserException e) {
 		}
 	}
@@ -62,22 +67,6 @@ public class Order {
 		
 		// TODO: проверка времени заказа
 		
-	    Thread geoCodeThread = new Thread(new Runnable() {
-	        public void run() 
-	        {
-				if (mStreetFrom.length() != 0 && mHouseFrom.length() != 0)
-					mPointFrom = tryGeocode(mCity, mStreetFrom, mHouseFrom);
-				if (mStreetTo.length() != 0 && mHouseTo.length() != 0)
-					mPointTo = tryGeocode(mCity, mStreetFrom, mHouseFrom);
-	        }
-	    });
-	    geoCodeThread.start();
-	    try {
-			geoCodeThread.join(10000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-	    
 		return true;
 	}
 	
@@ -114,16 +103,16 @@ public class Order {
 		GeoPoint result = new GeoPoint(0f, 0f);
 		
     	try {
-    		mGeoCodeResponseParser.setInput(response, "utf-8");
-	        int eventType = mGeoCodeResponseParser.getEventType();
+    		mXmlResponseParser.setInput(response, "utf-8");
+	        int eventType = mXmlResponseParser.getEventType();
 	        while (eventType != XmlPullParser.END_DOCUMENT) 
 	        {
 	        	if(eventType == XmlPullParser.START_TAG) 
 	        	{
-	        		String name = mGeoCodeResponseParser.getName();
+	        		String name = mXmlResponseParser.getName();
 	        		if (name.equalsIgnoreCase("found"))
 	        		{
-	        			String sFound = mGeoCodeResponseParser.nextText();
+	        			String sFound = mXmlResponseParser.nextText();
 	        			found = Integer.parseInt(sFound);
 	        			kinds = new String[found];
 	        			precisions = new String[found];
@@ -132,20 +121,20 @@ public class Order {
 	        		else if (name.equalsIgnoreCase("featureMember"))
 	        			inMember = true;
 	        		else if (inMember && name.equalsIgnoreCase("kind"))
-	        			kinds[index] = mGeoCodeResponseParser.nextText();
+	        			kinds[index] = mXmlResponseParser.nextText();
 	        		else if (inMember && name.equalsIgnoreCase("precision"))
-	        			precisions[index] = mGeoCodeResponseParser.nextText();
+	        			precisions[index] = mXmlResponseParser.nextText();
 	        		else if (inMember && name.equalsIgnoreCase("pos"))
-	        			positions[index] = mGeoCodeResponseParser.nextText();
+	        			positions[index] = mXmlResponseParser.nextText();
 	        	}
 	        	else if(eventType == XmlPullParser.END_TAG) 
-	        		if (mGeoCodeResponseParser.getName().equalsIgnoreCase("featureMember"))
+	        		if (mXmlResponseParser.getName().equalsIgnoreCase("featureMember"))
 	        		{
 	        			inMember = false;
 	        			if (index < found - 1) ++index;
 	        		}
 	        	
-	        	eventType = mGeoCodeResponseParser.next();
+	        	eventType = mXmlResponseParser.next();
 	        }
 						
 		} catch (XmlPullParserException e) {
@@ -179,4 +168,80 @@ public class Order {
     	return result;
 	}
 
+	public boolean submit()
+	{
+		boolean result = false;
+		
+		if (mStreetFrom.length() != 0 && mHouseFrom.length() != 0)
+			mPointFrom = tryGeocode(mCity, mStreetFrom, mHouseFrom);
+		if (mStreetTo.length() != 0 && mHouseTo.length() != 0)
+			mPointTo = tryGeocode(mCity, mStreetFrom, mHouseFrom);
+
+		String requestString = String.format("phone_number=%s&customer_name=%s&"+
+											 "street_from=%s&house_from=%s&"+
+											 "entrance_from=%s&landmark_from=%s&"+
+											 "street_to=%s&house_to=%s&"+
+											 "entrance_to=%s&landmark_to=%s&"+
+											 "time=%s&lat_from=%s&"+
+											 "lon_from=%s&lat_to=%s&lon_to=%s",
+											 mPhoneNumber, mCustomerName,
+											 mStreetFrom, mHouseFrom,
+											 mEntranceFrom, mLandmarkFrom,
+											 mStreetTo, mHouseTo,
+											 mEntranceTo, mLandmarkTo,
+											 mTime, mPointFrom.getLat(),
+											 mPointFrom.getLon(), mPointTo.getLat(),
+											 mPointTo.getLon());
+
+		try
+		{
+			URL placeOrderUrl = new URL("http://79.175.38.54:80/place_order.php" + URLEncoder.encode(requestString, "UTF-8"));
+			result = parsePlaceOrderResponse(new ByteArrayInputStream("<?xml version=\"1.0\" standalone=\"yes\"?><result error=\"0\">123</result>".getBytes())/*placeOrderUrl.openStream()*/);
+/*		} catch (MalformedURLException e) {
+			e.printStackTrace();
+			return false;
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+			return false;
+		} catch (IOException e) {
+			e.printStackTrace();
+			return false;
+		} catch (XmlPullParserException e) {
+			e.printStackTrace();
+			return false;*/
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+		return result;
+	}
+	
+	private boolean parsePlaceOrderResponse(InputStream response) throws XmlPullParserException, IOException
+	{
+		mXmlResponseParser.setInput(response, "utf-8");
+        int eventType = mXmlResponseParser.getEventType();
+        while (eventType != XmlPullParser.END_DOCUMENT) 
+        {
+        	if(eventType == XmlPullParser.START_TAG) 
+        	{
+        		String name = mXmlResponseParser.getName();
+        		if (name.equalsIgnoreCase("result"))
+        		{
+        			for (int i = 0; i < mXmlResponseParser.getAttributeCount(); ++i)
+        				if (mXmlResponseParser.getAttributeName(i).equalsIgnoreCase("error"))
+        				{
+        					int code = Integer.parseInt(mXmlResponseParser.getAttributeValue(i));
+        					// TODO: проверять и возвращать код ошибки
+        					if (code != 0)
+        						return false;
+        					mID = Integer.parseInt(mXmlResponseParser.nextText());
+        				}
+        		}
+        	}
+        	eventType = mXmlResponseParser.next();
+        }
+		return true;
+	}
+	
+	public int getID() { return mID; }
 }

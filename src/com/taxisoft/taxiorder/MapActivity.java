@@ -360,14 +360,6 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
 		startActivity(intent);
 	}
 
-	@LongClick(R.id.map)
-	void clk()
-	{
-		Log.d("MapView", "long click");
-			//ScreenPoint sPoint = new ScreenPoint(event.getX(), event.getY());
-			//mMapController.getDownloader().getGeoCode(this, mMapController.getGeoPoint(sPoint));
-	}
-	
 	@Override
 	public void onMapActionEvent(MapEvent event) {
 		if (event.getMsg() == MapEvent.MSG_LONG_PRESS)

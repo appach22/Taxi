@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
@@ -16,14 +15,12 @@ import org.xmlpull.v1.XmlPullParserFactory;
 
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.util.TimeUtils;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
@@ -85,66 +82,70 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 	View mGroupContents[] = new View[mGroupViews.length];
 
 	final long MILLISECONDS_IN_MONTH = 30L * 24 * 3600 * 1000;
+
+	
+	private class LoadStreetsTask extends AsyncTask<Void, Void, Void>
+	{
+		private Context context;
+		private String allStreets;
+		
+		public LoadStreetsTask(Context ctx)
+		{
+			context = ctx;
+		}
+		
+		protected Void doInBackground(Void... params)
+		{
+    		allStreets = "";
+        	SharedPreferences settings = getSharedPreferences("TaxiPrefs", MODE_PRIVATE);
+        	Date lastStreetsSyncDate = new Date(settings.getLong("StreetsSyncTime", 0));
+        	if ((new Date()).getTime() - lastStreetsSyncDate.getTime() < MILLISECONDS_IN_MONTH)
+        		allStreets = settings.getString("Streets", "");	
+        	else
+        	{
+    			URL streetsUrl;
+    			try {
+    				//streetsUrl = new URL("http://79.175.38.54:4481/get_streets.php");
+    				streetsUrl = new URL("http://79.175.38.54:80/get_streets.php");
+    				allStreets = parseStreetsResponse(streetsUrl.openStream());
+    				SharedPreferences.Editor editor = settings.edit();
+    				editor.putLong("StreetsSyncTime", (new Date()).getTime());
+    				editor.putString("Streets", allStreets);
+    				editor.commit();
+    			} catch (MalformedURLException e) {
+    				e.printStackTrace();
+    			} catch (IOException e) {
+    				e.printStackTrace();
+    			}
+        	}
+			return null;
+		}
+		
+		protected void onPostExecute(Void result)
+		{
+		    ArrayAdapter<String> adapter = new ArrayAdapter<String>(context, android.R.layout.simple_dropdown_item_1line, allStreets.split("\\|"));
+		    while (mStreetFrom == null || mStreetTo == null)
+				try {
+					synchronized(this){
+	                    wait(10);
+	                }
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+        	mStreetFrom.setAdapter(adapter);
+        	mStreetTo.setAdapter(adapter);
+		}
+	}
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		//setContentView(R.layout.activity_order);
 
 		mCity = getResources().getString(R.string.kursk);
 		mDialog = new AlertDialog.Builder(this);
-		startLoadingStreets(); // Asynchronous method
-	    //prepareOrderForm();
+		new LoadStreetsTask(this).execute();
 	}
 
-	private void startLoadingStreets()
-	{
-		final Context context = this;
-		final Handler uiHandler = new Handler();
-		
-	    new Thread(new Runnable() {
-	        public void run() {
-        		String allStreets = "";
-            	SharedPreferences settings = getSharedPreferences("TaxiPrefs", MODE_PRIVATE);
-            	Date lastStreetsSyncDate = new Date(settings.getLong("StreetsSyncTime", 0));
-            	if ((new Date()).getTime() - lastStreetsSyncDate.getTime() < MILLISECONDS_IN_MONTH)
-            		allStreets = settings.getString("Streets", "");	
-            	else
-            	{
-        			URL streetsUrl;
-        			try {
-        				//streetsUrl = new URL("http://79.175.38.54:4481/get_streets.php");
-        				streetsUrl = new URL("http://79.175.38.54:80/get_streets.php");
-        				allStreets = parseStreetsResponse(streetsUrl.openStream());
-        				SharedPreferences.Editor editor = settings.edit();
-        				editor.putLong("StreetsSyncTime", (new Date()).getTime());
-        				editor.putString("Streets", allStreets);
-        				editor.commit();
-        			} catch (MalformedURLException e) {
-        				e.printStackTrace();
-        			} catch (IOException e) {
-        				e.printStackTrace();
-        			}
-            	}
-			    final ArrayAdapter<String> adapter = new ArrayAdapter<String>(context, android.R.layout.simple_dropdown_item_1line, allStreets.split("\\|"));
-			    while (mStreetFrom == null || mStreetTo == null)
-					try {
-						synchronized(this){
-		                    wait(10);
-		                }
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-	            uiHandler.post(new Runnable() {
-	                public void run() {
-	                	mStreetFrom.setAdapter(adapter);
-	                	mStreetTo.setAdapter(adapter);
-	                }
-	            });
-	        }
-	    }).start();    		
-	}
-	
 	@AfterViews
 	void prepareOrderForm()
 	{
@@ -197,9 +198,6 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 	    	captions[i] = getResources().getString(mGroupCaptions[i]);
 		ExpandableListAdapter listAdapter = new OrderListAdapter(this, captions, mGroupContents);
 		lvOrder.setAdapter(listAdapter);
-		
-		//mBtnPlaceOrder = (Button)findViewById(R.id.btnPlaceOrder);
-		//btnPlaceOrder.setOnClickListener(this);
 	}
 	
     private String parseStreetsResponse(InputStream response)
@@ -270,14 +268,16 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 	}
 	
 
-	private class PlaceOrderTask extends AsyncTask<Void, Void, Void>
+	private class PlaceOrderTask extends AsyncTask<Void, Void, Boolean>
 	{
 		private Context context;
+		private Order mOrder;
 		private ProgressDialog mSubmittingOrderDialog;
 		
-		public PlaceOrderTask(Context ctx)
+		public PlaceOrderTask(Context ctx, Order order)
 		{
 			context = ctx;
+			mOrder = order;
 		}
 		
 		protected void onPreExecute()
@@ -285,21 +285,31 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 			mSubmittingOrderDialog = ProgressDialog.show(context, "", context.getResources().getString(R.string.wait_for_order_submit), true);
 		}
 		
-		protected Void doInBackground(Void... params)
+		protected Boolean doInBackground(Void... params)
 		{
-			try
-			{
-				TimeUnit.SECONDS.sleep(5);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			return null;
+			return mOrder.submit();
 		}
 		
-		protected void onPostExecute(Void result)
+		protected void onPostExecute(Boolean result)
 		{
 			//super.onPostExecute(result);
 			mSubmittingOrderDialog.dismiss();
+			if (result)
+			{
+				// Показываем диалог, что все ок
+				mDialog.setTitle(R.string.title_success);
+				mDialog.setMessage(R.string.msg_order_placed_successfully);
+				mDialog.setPositiveButton(android.R.string.ok, null);
+				mDialog.show();
+			}
+			else
+			{
+				// Показываем диалог, что все плохо
+				mDialog.setTitle(R.string.title_error);
+				mDialog.setMessage(R.string.msg_order_place_error);
+				mDialog.setPositiveButton(android.R.string.ok, null);
+				mDialog.show();
+			}
 		}
 	}
 	
@@ -333,23 +343,8 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 			return;
 		}
 
-		new PlaceOrderTask(this).execute();
+		new PlaceOrderTask(this, mOrder).execute();
 		
-/*		mSubmittingOrderDialog = ProgressDialog.show(this, "", getResources().getString(R.string.wait_for_order_submit), true);
-		Thread submitThread = new Thread(new Runnable() {
-			public void run()
-			{
-				try {
-					synchronized(this){
-	                    wait(5000);
-	                }
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-				mSubmittingOrderDialog.dismiss();
-			}
-		});
-		submitThread.start();*/
 	}
 	
 	private void ShowStreetAddress(String street, int idStreet, int idHouse)
