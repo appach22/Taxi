@@ -36,6 +36,7 @@ import ru.yandex.yandexmapkit.overlay.location.MyLocationItem;
 import ru.yandex.yandexmapkit.overlay.location.OnMyLocationListener;
 import ru.yandex.yandexmapkit.utils.GeoPoint;
 import ru.yandex.yandexmapkit.utils.ScreenPoint;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -163,21 +164,6 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
         overlay.addOverlayItem(taxi);
     }
     
-    public void updateTaxi(TaxiOverlayItem taxi, TaxiData newTaxiData)
-    {
-    	// Sanity check
-    	if (taxi.getID() == newTaxiData.id)
-    	{
-    		taxi.setGeoPoint(newTaxiData.coords);
-    	}
-    }
-
-    public void removeTaxi(Overlay overlay, TaxiOverlayItem taxi)
-    {
-    	overlay.removeOverlayItem(taxi);
-    }
-    
-    
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
@@ -198,6 +184,131 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
     	prefEditor.commit();
     };
     
+    private class UpdatePositionsTask extends AsyncTask<Void, Void, Void>
+    {
+    	List<TaxiOverlayItem> mOldTaxies;
+    	List<TaxiData> mNewTaxies;
+    	ListIterator<TaxiData> mNewIt;
+    	ListIterator<TaxiOverlayItem> mOldIt;
+
+    	private void updateTaxi(TaxiOverlayItem taxi, TaxiData newTaxiData)
+        {
+        	// Sanity check
+        	if (taxi.getID() == newTaxiData.id)
+        	{
+        		taxi.setGeoPoint(newTaxiData.coords);
+        	}
+        }
+
+    	private void removeTaxi(Overlay overlay, TaxiOverlayItem taxi)
+        {
+        	overlay.removeOverlayItem(taxi);
+        }
+             
+        private List<TaxiData> parsePositionsResponse(InputStream response)
+        {
+        	boolean inDrivers = false;
+        	List<TaxiData> taxies = new ArrayList<TaxiData>();
+        	try {
+        		mPositionsResponseParser.setInput(response, "utf-8");
+    	        int eventType = mPositionsResponseParser.getEventType();
+    	        while (eventType != XmlPullParser.END_DOCUMENT) {
+    	        	if(eventType == XmlPullParser.START_TAG) {
+    	        		if (mPositionsResponseParser.getName().equalsIgnoreCase("drivers"))
+    	        			inDrivers = true;
+    	        		else if (inDrivers && mPositionsResponseParser.getName().equalsIgnoreCase("driver"))
+    	        		{
+    	        			TaxiData taxiData = new TaxiData(); 
+    	        			for (int i = 0; i < mPositionsResponseParser.getAttributeCount(); ++i)
+    	        				if (mPositionsResponseParser.getAttributeName(i).equalsIgnoreCase("gpslat"))
+    	        					taxiData.coords.setLat(Double.parseDouble(mPositionsResponseParser.getAttributeValue(i)));
+    	        				else if (mPositionsResponseParser.getAttributeName(i).equalsIgnoreCase("gpslon"))
+    	        					taxiData.coords.setLon(Double.parseDouble(mPositionsResponseParser.getAttributeValue(i)));
+    	        			taxiData.id = Integer.parseInt(mPositionsResponseParser.nextText());
+    	        			taxies.add(taxiData);
+    	        		}
+    	        	}
+    	        	eventType = mPositionsResponseParser.nextTag();
+    	        }
+    						
+    		} catch (XmlPullParserException e) {
+    		} catch (IOException e) {
+    		}
+        	if (!inDrivers)
+        		return null;
+        	return taxies;
+        }
+        
+        private void getNewTaxies()
+        {
+        	try {
+    			//URL taxiesUrl = new URL("http://79.175.38.54:4481/get_gps.php");
+    			URL taxiesUrl = new URL("http://79.175.38.54:80/get_gps.php");
+    			mNewTaxies = parsePositionsResponse(taxiesUrl.openStream());
+    	    } catch (MalformedURLException e) {
+    			e.printStackTrace();
+    		} catch (IOException e) {
+    			e.printStackTrace();
+    		}
+        }
+        
+        private void updateTaxiesPositions()
+        {
+			if (mNewTaxies == null)
+				return;
+			mNewIt = mNewTaxies.listIterator();
+			mOldIt = mOldTaxies.listIterator();
+
+			while(mNewIt.hasNext())
+	        {
+	        	TaxiData taxiData = mNewIt.next();
+	        	while(mOldIt.hasNext())
+	        	{
+	        		TaxiOverlayItem oldTaxi = mOldIt.next();
+	        		if (taxiData.id == oldTaxi.getID())
+	        		{
+	        			updateTaxi(oldTaxi, taxiData);
+	        			mOldIt.remove();
+	        			mNewIt.remove();
+	        		}
+	        	}
+	        	while(mOldIt.hasPrevious())
+	        		mOldIt.previous();
+	        }
+        	while(mNewIt.hasPrevious())
+        		mNewIt.previous();
+        	
+        	while(mOldIt.hasNext())
+        		removeTaxi(mOverlay, mOldIt.next());
+
+        	while(mNewIt.hasNext())
+        		createTaxi(mOverlay, mNewIt.next());
+        	
+	        mMapController.notifyRepaint();
+        	
+        }
+    	
+    	@SuppressWarnings("unchecked")
+		@Override
+    	protected synchronized void onPreExecute()
+    	{
+       		mOldTaxies = mOverlay.getOverlayItems();
+    	}
+    	
+		@Override
+		protected Void doInBackground(Void... params)
+		{
+       		getNewTaxies();
+			return null;
+		}
+    	
+		@Override
+    	protected synchronized void onPostExecute(Void result)
+		{
+           	updateTaxiesPositions();
+		}
+    }
+    
     @Override
     protected void onResume() 
     {
@@ -214,8 +325,7 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
 	    	mTaxiesCoordsTimer.scheduleAtFixedRate(new TimerTask() {
 	            @Override
 	            public void run() {
-	            	// FIXME: сделать thread-safe!!!
-	            	updateTaxiesPositions();
+	            	runOnUiThread(new Runnable() {public void run(){new UpdatePositionsTask().execute();}});
 	            }
 	    	}, 0, 5000);
 		}
@@ -242,89 +352,7 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
     	mMapController.setPositionNoAnimationTo(new GeoPoint(settings.getFloat("Latitude", 51.735262f), settings.getFloat("Longitude", 36.185569f)), settings.getFloat("Scale", 0.0f));
     };
     
-    private List<TaxiData> parsePositionsResponse(InputStream response)
-    {
-    	boolean inDrivers = false;
-    	List<TaxiData> taxies = new ArrayList<TaxiData>();
-    	try {
-    		mPositionsResponseParser.setInput(response, "utf-8");
-	        int eventType = mPositionsResponseParser.getEventType();
-	        while (eventType != XmlPullParser.END_DOCUMENT) {
-	        	if(eventType == XmlPullParser.START_TAG) {
-	        		if (mPositionsResponseParser.getName().equalsIgnoreCase("drivers"))
-	        			inDrivers = true;
-	        		else if (inDrivers && mPositionsResponseParser.getName().equalsIgnoreCase("driver"))
-	        		{
-	        			TaxiData taxiData = new TaxiData(); 
-	        			for (int i = 0; i < mPositionsResponseParser.getAttributeCount(); ++i)
-	        				if (mPositionsResponseParser.getAttributeName(i).equalsIgnoreCase("gpslat"))
-	        					taxiData.coords.setLat(Double.parseDouble(mPositionsResponseParser.getAttributeValue(i)));
-	        				else if (mPositionsResponseParser.getAttributeName(i).equalsIgnoreCase("gpslon"))
-	        					taxiData.coords.setLon(Double.parseDouble(mPositionsResponseParser.getAttributeValue(i)));
-	        			taxiData.id = Integer.parseInt(mPositionsResponseParser.nextText());
-	        			taxies.add(taxiData);
-	        		}
-	        	}
-	        	// FIXME: здесь почему-то валится иногда ArrayIndexOutOfBoundsException
-	        	eventType = mPositionsResponseParser.nextTag();
-	        }
-						
-		} catch (XmlPullParserException e) {
-		} catch (IOException e) {
-		}
-    	if (!inDrivers)
-    		return null;
-    	return taxies;
-    }
-    
-    private void updateTaxiesPositions()
-    {
-    	List<TaxiData> newTaxies;
-    	try {
-			//URL taxiesUrl = new URL("http://79.175.38.54:4481/get_gps.php");
-			URL taxiesUrl = new URL("http://79.175.38.54:80/get_gps.php");
-			newTaxies = parsePositionsResponse(taxiesUrl.openStream());
-			if (newTaxies == null)
-				return;
-			ListIterator<TaxiData> newIt = newTaxies.listIterator();
 
-			@SuppressWarnings("unchecked")
-			List<TaxiOverlayItem> oldTaxies = mOverlay.getOverlayItems();
-			ListIterator<TaxiOverlayItem> oldIt = oldTaxies.listIterator();
-
-			while(newIt.hasNext())
-	        {
-	        	TaxiData taxiData = newIt.next();
-	        	while(oldIt.hasNext())
-	        	{
-	        		TaxiOverlayItem oldTaxi = oldIt.next();
-	        		if (taxiData.id == oldTaxi.getID())
-	        		{
-	        			updateTaxi(oldTaxi, taxiData);
-	        			oldIt.remove();
-	        			newIt.remove();
-	        		}
-	        	}
-	        	while(oldIt.hasPrevious())
-	        		oldIt.previous();
-	        }
-        	while(newIt.hasPrevious())
-        		newIt.previous();
-        	
-        	while(oldIt.hasNext())
-        		removeTaxi(mOverlay, oldIt.next());
-
-        	while(newIt.hasNext())
-        		createTaxi(mOverlay, newIt.next());
-        	
-	        mMapController.notifyRepaint();
-	    } catch (MalformedURLException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-    }
-	
     @Override
     protected Dialog onCreateDialog(int id) {
     	AlertDialog.Builder builder = null;
