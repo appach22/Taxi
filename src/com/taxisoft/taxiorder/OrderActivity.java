@@ -105,8 +105,7 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
         	{
     			URL streetsUrl;
     			try {
-    				//streetsUrl = new URL("http://79.175.38.54:4481/get_streets.php");
-    				streetsUrl = new URL("http://79.175.38.54:80/get_streets.php");
+    				streetsUrl = new URL(MapActivity.URL_STREETS);
     				allStreets = parseStreetsResponse(streetsUrl.openStream());
     				SharedPreferences.Editor editor = settings.edit();
     				editor.putLong("StreetsSyncTime", (new Date()).getTime());
@@ -301,6 +300,7 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 				mDialog.setMessage(R.string.msg_order_placed_successfully);
 				mDialog.setPositiveButton(android.R.string.ok, null);
 				mDialog.show();
+				startService(new Intent(context, OrderStateService.class));
 			}
 			else
 			{

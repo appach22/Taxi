@@ -39,7 +39,21 @@ public class Order {
     XmlPullParser mXmlResponseParser = null;
     
     private int mID = 0;
+    
+    public static final int STATE_UNDEFINED 		= -1;
+    public static final int STATE_NO_SUCH_ORDER 	= 0;
+    public static final int STATE_ACCEPTED			= 1;
+    public static final int STATE_LOOKING_FOR_CAR	= 2;
+    public static final int STATE_CAR_ASSIGNED 		= 3;
+    public static final int STATE_CAR_APPROACHES	= 4;
+    public static final int STATE_CAR_ARRIVED 		= 5;
+    public static final int STATE_ON_THE_WAY 		= 6;
+    public static final int STATE_CLOSED 			= 7;
+    public static final int STATE_CAR_NOT_FOUND		= 8;
+    public static final int STATE_CANCELLED			= 9;
+    public static final int STATE_EDITED	 		= 10;
 
+    
 	public Order()
 	{
 		// TODO: инициализировать все строки
@@ -82,7 +96,7 @@ public class Order {
 		GeoPoint result = new GeoPoint(0f, 0f);
 		String requestString = String.format("%s %s %s", city, street, house);
 		try {
-			URL geoCodeUrl = new URL("http://geocode-maps.yandex.ru/1.x/?geocode=" + URLEncoder.encode(requestString, "UTF-8"));
+			URL geoCodeUrl = new URL(MapActivity.URL_YANDEX_GEOCODER + "?geocode=" + URLEncoder.encode(requestString, "UTF-8"));
 			result = parseGeoCodeResponse(geoCodeUrl.openStream());
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
@@ -177,7 +191,7 @@ public class Order {
 		if (mStreetTo.length() != 0 && mHouseTo.length() != 0)
 			mPointTo = tryGeocode(mCity, mStreetFrom, mHouseFrom);
 
-		String requestString = String.format("phone_number=%s&customer_name=%s&"+
+		String requestString = String.format("?phone_number=%s&customer_name=%s&"+
 											 "street_from=%s&house_from=%s&"+
 											 "entrance_from=%s&landmark_from=%s&"+
 											 "street_to=%s&house_to=%s&"+
@@ -195,7 +209,7 @@ public class Order {
 
 		try
 		{
-			URL placeOrderUrl = new URL("http://79.175.38.54:80/place_order.php" + URLEncoder.encode(requestString, "UTF-8"));
+			URL placeOrderUrl = new URL(MapActivity.URL_PLACE_ORDER + URLEncoder.encode(requestString, "UTF-8"));
 			result = parsePlaceOrderResponse(new ByteArrayInputStream("<?xml version=\"1.0\" standalone=\"yes\"?><result error=\"0\">123</result>".getBytes())/*placeOrderUrl.openStream()*/);
 /*		} catch (MalformedURLException e) {
 			e.printStackTrace();

@@ -87,6 +87,17 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
     
     private static final int LOGIN_DIALOG_ID = 1;
     
+    private static final String SERVER = "79.175.38.54";
+    private static final String PORT = "80"; //"4481";
+    private static final String URL_ROOT = "http://" + SERVER + ":" + PORT;
+    
+    public static final String URL_TAXIES_POSITIONS = URL_ROOT + "/get_gps.php";
+    public static final String URL_STREETS 			= URL_ROOT + "/get_streets.php";
+    public static final String URL_PLACE_ORDER		= URL_ROOT + "/place_order.php";
+    public static final String URL_ORDER_STATE 		= URL_ROOT + "/get_order_state.php";
+    
+    public static final String URL_YANDEX_GEOCODER  = "http://geocode-maps.yandex.ru/1.x/";
+    
     class TaxiData
     {
     	public GeoPoint coords;
@@ -242,8 +253,7 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
         private void getNewTaxies()
         {
         	try {
-    			//URL taxiesUrl = new URL("http://79.175.38.54:4481/get_gps.php");
-    			URL taxiesUrl = new URL("http://79.175.38.54:80/get_gps.php");
+    			URL taxiesUrl = new URL(URL_TAXIES_POSITIONS);
     			mNewTaxies = parsePositionsResponse(taxiesUrl.openStream());
     	    } catch (MalformedURLException e) {
     			e.printStackTrace();

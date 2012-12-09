@@ -34,6 +34,7 @@
             android:name=".OrderActivity_"
             android:label="@string/creating_order" >
         </activity>
+        <service android:process=":order_state" android:name="OrderStateService"></service>
     </application>
 
 </manifest>
