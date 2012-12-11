@@ -6,7 +6,6 @@ import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Date;
-import java.util.concurrent.TimeUnit;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -18,8 +17,10 @@ import android.os.Bundle;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -72,6 +73,8 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 	Order mOrder = null;
 	
 	AlertDialog.Builder mDialog;
+	
+	BroadcastReceiver mOrderStateReceiver;
 
 	public static final int GROUP_FROM = 0;
 	public static final int GROUP_TO = 1;
@@ -143,8 +146,24 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 		mCity = getResources().getString(R.string.kursk);
 		mDialog = new AlertDialog.Builder(this);
 		new LoadStreetsTask(this).execute();
+
+		mOrderStateReceiver = new BroadcastReceiver() {
+			@Override
+			public void onReceive(Context context, Intent intent)
+			{
+				Toast.makeText(context, "state of " + intent.getStringExtra("id") + " is " + String.valueOf(intent.getIntExtra("state", 0)), Toast.LENGTH_SHORT).show();
+			}
+		};
+	    IntentFilter filter = new IntentFilter(OrderStateService.BROADCAST_ACTION);
+	    registerReceiver(mOrderStateReceiver, filter);
 	}
 
+	@Override
+	protected void onDestroy() {
+	    super.onDestroy();
+	    unregisterReceiver(mOrderStateReceiver);
+	}
+	
 	@AfterViews
 	void prepareOrderForm()
 	{
@@ -196,7 +215,7 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 	    for (int i = 0; i < mGroupCaptions.length; ++i)
 	    	captions[i] = getResources().getString(mGroupCaptions[i]);
 		ExpandableListAdapter listAdapter = new OrderListAdapter(this, captions, mGroupContents);
-		lvOrder.setAdapter(listAdapter);
+		lvOrder.setAdapter(listAdapter);		
 	}
 	
     private String parseStreetsResponse(InputStream response)
@@ -300,7 +319,7 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 				mDialog.setMessage(R.string.msg_order_placed_successfully);
 				mDialog.setPositiveButton(android.R.string.ok, null);
 				mDialog.show();
-				startService(new Intent(context, OrderStateService.class));
+				startService((new Intent(context, OrderStateService.class)).putExtra("id", String.valueOf(mOrder.getID())));
 			}
 			else
 			{

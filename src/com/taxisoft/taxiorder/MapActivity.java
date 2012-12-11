@@ -1,5 +1,6 @@
 package com.taxisoft.taxiorder;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -17,7 +18,6 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import com.googlecode.androidannotations.annotations.AfterViews;
 import com.googlecode.androidannotations.annotations.Click;
 import com.googlecode.androidannotations.annotations.EActivity;
-import com.googlecode.androidannotations.annotations.LongClick;
 import com.googlecode.androidannotations.annotations.ViewById;
 import com.taxisoft.taxiorder.R;
 
@@ -55,7 +55,6 @@ import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
@@ -201,7 +200,7 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
     	List<TaxiData> mNewTaxies;
     	ListIterator<TaxiData> mNewIt;
     	ListIterator<TaxiOverlayItem> mOldIt;
-
+    	
     	private void updateTaxi(TaxiOverlayItem taxi, TaxiData newTaxiData)
         {
         	// Sanity check
@@ -297,25 +296,39 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
 	        mMapController.notifyRepaint();
         	
         }
+        
+        //public boolean isRunning(){;}
     	
     	@SuppressWarnings("unchecked")
 		@Override
     	protected synchronized void onPreExecute()
     	{
-       		mOldTaxies = mOverlay.getOverlayItems();
+			synchronized (this) {
+				mOldTaxies = mOverlay.getOverlayItems();
+			}
     	}
     	
 		@Override
 		protected Void doInBackground(Void... params)
 		{
-       		getNewTaxies();
+			synchronized (this) {
+				getNewTaxies();
+			}
 			return null;
 		}
     	
 		@Override
-    	protected synchronized void onPostExecute(Void result)
+    	protected void onPostExecute(Void result)
 		{
-           	updateTaxiesPositions();
+			synchronized (this) {
+				updateTaxiesPositions();
+			}
+	    	mTaxiesCoordsTimer.schedule(new TimerTask() {
+	            @Override
+	            public void run() {
+	            	runOnUiThread(new Runnable() {public void run(){new UpdatePositionsTask().execute();}});
+	            }
+	    	}, 5000);
 		}
     }
     
@@ -332,12 +345,13 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
 			btnOrder.setVisibility(View.VISIBLE);
 			btnSettings.setVisibility(View.VISIBLE);
 	    	mTaxiesCoordsTimer = new Timer();
-	    	mTaxiesCoordsTimer.scheduleAtFixedRate(new TimerTask() {
+	    	// TODO: переделать на schedule() после окончания предыдущей задачи 
+	    	mTaxiesCoordsTimer.schedule(new TimerTask() {
 	            @Override
 	            public void run() {
 	            	runOnUiThread(new Runnable() {public void run(){new UpdatePositionsTask().execute();}});
 	            }
-	    	}, 0, 5000);
+	    	}, 0);
 		}
 		else if (reason == INTENT_SHOW_ON_THE_MAP)
 		{
