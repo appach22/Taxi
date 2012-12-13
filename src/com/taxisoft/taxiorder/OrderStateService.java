@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -26,11 +28,14 @@ import android.util.Log;
 
 public class OrderStateService extends Service
 {
-	ArrayList<String> mOrders;
+	ArrayList<Order> mOrders;
+    String mStoredOrdersIDs[];
     XmlPullParser mStateResponseParser;
     URL mStateUrl;
     int mCounter;
     NotificationManager mNotificationManager;
+    Timer mGetOrdersTimer; 
+    boolean mPreloadingFinished;
 
     public final static String BROADCAST_ACTION = "com.taxisoft.taxiorder.OrderStateService"; 
     		
@@ -38,7 +43,6 @@ public class OrderStateService extends Service
 	@Override
 	public IBinder onBind(Intent arg0)
 	{
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -71,30 +75,29 @@ public class OrderStateService extends Service
 		return -1;
 	}
 	
-	private void getAllOrdersState()
+	private void getAllOrdersState(boolean isFirstTime)
 	{
 		Intent intent = new Intent(BROADCAST_ACTION);
 		for (int i = 0; i < mOrders.size(); ++i)
 		{
-			intent.putExtra("id", mOrders.get(i));
-			int state = getOrderState(mOrders.get(i));
-			intent.putExtra("state", state);
+			Order order = mOrders.get(i);
+			int newState = getOrderState(String.valueOf(order.getID()));
+			if (newState == order.getState() && !isFirstTime)
+				continue;
+			intent.putExtra("id", String.valueOf(order.getID()));
+			intent.putExtra("state", newState);
 			sendBroadcast(intent);
 			Context ctx = getApplicationContext();
 			Resources res = ctx.getResources();
-			Notification notification = new NotificationCompat.Builder(getApplicationContext())
-	         .setContentTitle("Order state")
-	         .setContentText("Order state is " + String.valueOf(state))
-	         .setSmallIcon(R.drawable.ic_launcher)
-	         .setLargeIcon(BitmapFactory.decodeResource(res, R.drawable.ic_launcher))
-	         .setContentIntent(PendingIntent.getActivity(this, 0, new Intent(this, MapActivity_.class), 0))
-	         .build();	
-			mNotificationManager.notify(Integer.parseInt(mOrders.get(i)), notification);
-			switch (state)
+			boolean doCancel = false;
+			boolean doRemove = false;
+			switch (newState)
 			{
 				case Order.STATE_UNDEFINED :
+					doCancel = true;
 					break;
 				case Order.STATE_NO_SUCH_ORDER :
+					doCancel = true;
 					break;
 				case Order.STATE_ACCEPTED :
 					break;
@@ -115,13 +118,77 @@ public class OrderStateService extends Service
 				case Order.STATE_CANCELLED :
 					break;
 				case Order.STATE_EDITED :
+					order = Order.getFromServer(order.getID());
+					// Блокировка захвачена вне метода
+					mOrders.remove(i);
+					mOrders.add(order);
+					break;
+				case Order.STATE_DEBUG_REMOVE :
+					doRemove = true;
 					break;
 				default :
 					break;
 			}
+			if (doCancel)
+				mNotificationManager.cancel(order.getID());
+			else if (doRemove)
+				RemoveOrder(order);
+			else
+			{
+				Notification notification = new NotificationCompat.Builder(getApplicationContext())
+		         .setContentTitle(res.getString(Order.STATE_NAMES[newState]))
+		         .setContentText(order.toString())
+		         .setSmallIcon(R.drawable.ic_launcher)
+		         .setLargeIcon(BitmapFactory.decodeResource(res, R.drawable.ic_launcher))
+		         .setContentIntent(PendingIntent.getActivity(this, 0, new Intent(this, MapActivity_.class), 0))
+		         .build();	
+				mNotificationManager.notify(order.getID(), notification);
+			}
+			
 		}
-		synchronized(this) {
+	}
+	
+	private class GetOrdersTask extends TimerTask
+	{
+		@Override
+		public void run()
+		{
+        	boolean needReschedule = false;
+    		for (int i = 0; i < mStoredOrdersIDs.length; ++i)
+    		{
+    			if (!mStoredOrdersIDs[i].equals("null") && !mStoredOrdersIDs[i].equals(""))
+    			{
+    				Order order = Order.getFromServer(mStoredOrdersIDs[i]);
+    				if (order != null)
+    				{
+    	    		    synchronized(mOrders)
+    	    		    {
+	    					if (!mOrders.contains(order))
+	    						mOrders.add(order);
+    	    		    }
+    				}
+    				else
+    				{
+    					needReschedule = true;
+    					break;
+    				}
+    			}
+    		}
+    		if (needReschedule)
+    		{
+    			mGetOrdersTimer.schedule(new GetOrdersTask(), 5000);
+    		}
+    		else
+    		{
+    		    Log.d(LOG_TAG, "Preloading Finished");
+    		    synchronized(mOrders)
+    		    {
+    		    	SaveCurrentOrders();
+    		    	mPreloadingFinished = true;
+    		    }
+    		}
 		}
+		
 	}
 
 	public void onCreate() 
@@ -129,18 +196,13 @@ public class OrderStateService extends Service
 	    super.onCreate();
 	    Log.d(LOG_TAG, "OrderStateService onCreate");
 		SharedPreferences settings = getSharedPreferences("TaxiPrefs", MODE_PRIVATE);
-		String orders[] = settings.getString("CurrentOrders", "").split(",");
-		mOrders = new ArrayList<String>();
-		for (int i = 0; i < orders.length; ++i)
-		{
-			Log.d(LOG_TAG, "orders[i]=" + orders[i]);
-			if (!orders[i].equals("null") && !orders[i].equals(""))
-			{
-				Log.d(LOG_TAG, "Adding " + orders[i]);
-				mOrders.add(orders[i]);
-			}
-		}
-
+		mStoredOrdersIDs = settings.getString("CurrentOrders", "").split(",");
+		mOrders = new ArrayList<Order>();
+		// Здесь пытаемся загрузить с сервера данные об уже активных заказах
+		// Если попытка не удалась - то перезапускаем таймер снова через 5 сек.
+		mPreloadingFinished = false;
+		mGetOrdersTimer = new Timer();
+    	mGetOrdersTimer.schedule(new GetOrdersTask(), 0);
 		mNotificationManager = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
 		
 		mCounter = 0;
@@ -162,6 +224,10 @@ public class OrderStateService extends Service
 
     	new Thread(new Runnable(){ 
     		public void run(){
+    			synchronized(mOrders) 
+    			{
+    				getAllOrdersState(true);
+    			}
     			while (true)
     			{
 	    			try
@@ -170,8 +236,18 @@ public class OrderStateService extends Service
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
-	    			mCounter = ++mCounter % 12;
-	    			getAllOrdersState();
+	    			mCounter = ++mCounter % 13;
+	    			synchronized(mOrders) 
+	    			{
+		    			getAllOrdersState(false);
+		    			if (mPreloadingFinished && mOrders.size() == 0)
+		    			{
+		    				// Завершаем сервис, если не осталось заказов в списке
+		    				Log.d(LOG_TAG, "Exiting!..");
+		    				stopSelf();
+		    				break;
+		    			}
+	    			}
     			}
     		} 
     	}).start();
@@ -183,32 +259,54 @@ public class OrderStateService extends Service
 	    Log.d(LOG_TAG, "OrderStateService onDestroy");
 	}
 
+	private void SaveCurrentOrders()
+	{
+    	SharedPreferences settings = getSharedPreferences("TaxiPrefs", MODE_PRIVATE);
+    	SharedPreferences.Editor prefEditor = settings.edit();
+    	String param = "";
+		// Блокировка mOrders захвачена вне метода
+    	for (int i = 0; i < mOrders.size(); ++i)
+    	{
+    		if (i > 0)
+    			param += ",";
+    		param += Integer.toString(mOrders.get(i).getID());
+    	}
+	    Log.d(LOG_TAG, String.format("SaveCurrentOrders raw=%s", param));
+    	prefEditor.putString("CurrentOrders", param);
+    	prefEditor.commit();
+	}
+	
+	void RemoveOrder(Order order)
+	{
+		mNotificationManager.cancel(order.getID());
+	    synchronized(mOrders)
+	    {
+			mOrders.remove(order);
+			SaveCurrentOrders();
+	    }
+	}
+	
 	public int onStartCommand(Intent intent, int flags, int startId) 
 	{
-		Log.d(LOG_TAG, "onStartCommand");
 		if (intent != null)
 		{
 			String newID = intent.getStringExtra("id");
 			Log.d(LOG_TAG, String.format("OrderStateService onStartCommand, id=%s intent=%s", newID, intent.toString()));
-			if (!mOrders.contains(newID))
+			Order newOrder = Order.getFromServer(newID);
+			if (newOrder != null)
 			{
-				synchronized(this) {
-					mOrders.add(newID);
+				synchronized(mOrders) {
+					if (!mOrders.contains(newOrder))
+					{
+						mOrders.add(newOrder);
+				    	if (mPreloadingFinished)
+				    		SaveCurrentOrders();
+					}
 				}
-		    	SharedPreferences settings = getSharedPreferences("TaxiPrefs", MODE_PRIVATE);
-		    	SharedPreferences.Editor prefEditor = settings.edit();
-		    	String param = "";
-		    	for (int i = 0; i < mOrders.size(); ++i)
-		    	{
-		    		if (i > 0)
-		    			param += ",";
-		    		param += mOrders.get(i);
-		    	}
-		    	prefEditor.putString("CurrentOrders", param);
-		    	prefEditor.commit();
 			}
 		}
 		
+		// FIXME
 		return START_STICKY;
 	}
 	

@@ -32,5 +32,16 @@
     <string name="title_success">Ура!</string>
     <string name="msg_order_placed_successfully">Ваш заказ успешно зарегистрирован.</string>
     <string name="msg_order_place_error">Ошибка размещения заказа.</string>
+    <string name="state_no_such_order">Неверный номер заказа</string>
+    <string name="state_accepted">Заказ обрабатывается</string>
+    <string name="state_looking_for_car">Поиск свободной машины</string>
+    <string name="state_car_assigned">Машина найдена</string>
+    <string name="state_car_approaches">Машина в пути</string>
+    <string name="state_car_arrived">Машина подана и ожидает Вас</string>
+    <string name="state_on_the_way">Сейчас мы в пути</string>
+    <string name="state_closed">Поездка завершена</string>
+    <string name="state_car_not_found">Не удалось найти машину</string>
+    <string name="state_cancelled">Заказ отменён</string>
+    <string name="state_edited">Заказ уточнён оператором</string>
     
 </resources>

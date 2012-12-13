@@ -94,6 +94,7 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
     public static final String URL_STREETS 			= URL_ROOT + "/get_streets.php";
     public static final String URL_PLACE_ORDER		= URL_ROOT + "/place_order.php";
     public static final String URL_ORDER_STATE 		= URL_ROOT + "/get_order_state.php";
+    public static final String URL_ORDER_DATA 		= URL_ROOT + "/get_order_data.php";
     
     public static final String URL_YANDEX_GEOCODER  = "http://geocode-maps.yandex.ru/1.x/";
     
