@@ -6,10 +6,12 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -70,19 +72,24 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
 	
     MapController mMapController;
     OverlayManager mOverlayManager;
-    Overlay mOverlay;
+    Overlay mTaxiesOverlay;
+    Overlay mCommonOverlay;
     OverlayItem mMeItem = null;
     Drawable mMePic;
     MyLocationBalloonItem mMeBalloon;
     static GeoPoint mMyLocation = null;
     GeoCode mMyGeoCode;
-    Timer mTaxiesCoordsTimer;
+    Timer mUpdatePositionsTimer;
+    UpdatePositionsTask mUpdatePositionsTask;
     XmlPullParser mPositionsResponseParser;
     boolean mIsLoggedIn = false;
 
+    public static final int INTENT_UNKNOWN = -1;
     public static final int INTENT_SHOW_ALL_TAXIES = 0;
     public static final int INTENT_SHOW_ON_THE_MAP = 1;
     public static final int INTENT_CURRENT_LOCATION = 2;
+    public static final int INTENT_LOOKING_FOR_CAR = 3;
+    public static final int INTENT_DEFAULT = INTENT_SHOW_ALL_TAXIES;
     
     private static final int LOGIN_DIALOG_ID = 1;
     
@@ -119,9 +126,12 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
         //mOverlayManager.getMyLocation().setEnabled(true);
         //mOverlayManager.getMyLocation().addMyLocationListener(this);
 
-        mOverlay = new Overlay(mMapController);
+        mTaxiesOverlay = new Overlay(mMapController);
         // Add the layer to the map
-        mOverlayManager.addOverlay(mOverlay);
+        mOverlayManager.addOverlay(mTaxiesOverlay);
+        mCommonOverlay = new Overlay(mMapController);
+        // Add the layer to the map
+        mOverlayManager.addOverlay(mCommonOverlay);
     }
     
     @Override
@@ -186,6 +196,11 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
     protected void onPause() 
     {
     	super.onPause();
+    	if (getIntent().getIntExtra("Reason", INTENT_UNKNOWN) == INTENT_SHOW_ON_THE_MAP)
+    		return;
+    	if (mUpdatePositionsTask != null)
+    		mUpdatePositionsTask.cancel(true);
+    	mTaxiesOverlay.clearOverlayItems();
     	GeoPoint center = mMapController.getMapCenter(); 
     	SharedPreferences settings = getSharedPreferences("TaxiPrefs", MODE_PRIVATE);
     	SharedPreferences.Editor prefEditor = settings.edit();
@@ -221,29 +236,36 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
         	boolean inDrivers = false;
         	List<TaxiData> taxies = new ArrayList<TaxiData>();
         	try {
-        		mPositionsResponseParser.setInput(response, "utf-8");
-    	        int eventType = mPositionsResponseParser.getEventType();
-    	        while (eventType != XmlPullParser.END_DOCUMENT) {
-    	        	if(eventType == XmlPullParser.START_TAG) {
-    	        		if (mPositionsResponseParser.getName().equalsIgnoreCase("drivers"))
-    	        			inDrivers = true;
-    	        		else if (inDrivers && mPositionsResponseParser.getName().equalsIgnoreCase("driver"))
-    	        		{
-    	        			TaxiData taxiData = new TaxiData(); 
-    	        			for (int i = 0; i < mPositionsResponseParser.getAttributeCount(); ++i)
-    	        				if (mPositionsResponseParser.getAttributeName(i).equalsIgnoreCase("gpslat"))
-    	        					taxiData.coords.setLat(Double.parseDouble(mPositionsResponseParser.getAttributeValue(i)));
-    	        				else if (mPositionsResponseParser.getAttributeName(i).equalsIgnoreCase("gpslon"))
-    	        					taxiData.coords.setLon(Double.parseDouble(mPositionsResponseParser.getAttributeValue(i)));
-    	        			taxiData.id = Integer.parseInt(mPositionsResponseParser.nextText());
-    	        			taxies.add(taxiData);
-    	        		}
-    	        	}
-    	        	eventType = mPositionsResponseParser.nextTag();
-    	        }
-    						
+        		synchronized(mPositionsResponseParser)
+        		{
+	        		mPositionsResponseParser.setInput(response, "utf-8");
+	    	        int eventType = mPositionsResponseParser.getEventType();
+	    	        while (eventType != XmlPullParser.END_DOCUMENT) {
+	    	        	if (isCancelled())
+	    	        		return taxies;
+	    	        	if(eventType == XmlPullParser.START_TAG) {
+	    	        		if (mPositionsResponseParser.getName().equalsIgnoreCase("drivers"))
+	    	        			inDrivers = true;
+	    	        		else if (inDrivers && mPositionsResponseParser.getName().equalsIgnoreCase("driver"))
+	    	        		{
+	    	        			TaxiData taxiData = new TaxiData(); 
+	    	        			for (int i = 0; i < mPositionsResponseParser.getAttributeCount(); ++i)
+	    	        				if (mPositionsResponseParser.getAttributeName(i).equalsIgnoreCase("gpslat"))
+	    	        					taxiData.coords.setLat(Double.parseDouble(mPositionsResponseParser.getAttributeValue(i)));
+	    	        				else if (mPositionsResponseParser.getAttributeName(i).equalsIgnoreCase("gpslon"))
+	    	        					taxiData.coords.setLon(Double.parseDouble(mPositionsResponseParser.getAttributeValue(i)));
+	    	        			taxiData.id = Integer.parseInt(mPositionsResponseParser.nextText());
+	    	        			taxies.add(taxiData);
+	    	        		}
+	    	        	}
+	    	        	eventType = mPositionsResponseParser.nextTag();
+	    	        }
+        		}	    	       
     		} catch (XmlPullParserException e) {
     		} catch (IOException e) {
+    		} catch (NumberFormatException e) {
+    		} catch (Exception e) {
+    			e.printStackTrace();
     		}
         	if (!inDrivers)
         		return null;
@@ -289,45 +311,50 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
         		mNewIt.previous();
         	
         	while(mOldIt.hasNext())
-        		removeTaxi(mOverlay, mOldIt.next());
+        		removeTaxi(mTaxiesOverlay, mOldIt.next());
 
         	while(mNewIt.hasNext())
-        		createTaxi(mOverlay, mNewIt.next());
+        		createTaxi(mTaxiesOverlay, mNewIt.next());
         	
 	        mMapController.notifyRepaint();
         	
         }
         
-        //public boolean isRunning(){;}
-    	
     	@SuppressWarnings("unchecked")
 		@Override
-    	protected synchronized void onPreExecute()
+    	protected void onPreExecute()
     	{
-			synchronized (this) {
-				mOldTaxies = mOverlay.getOverlayItems();
-			}
+			mOldTaxies = mTaxiesOverlay.getOverlayItems();
     	}
     	
 		@Override
 		protected Void doInBackground(Void... params)
 		{
-			synchronized (this) {
-				getNewTaxies();
-			}
+			getNewTaxies();
 			return null;
 		}
     	
+		boolean mWasCancelled= false;
+		@Override
+		protected void onCancelled()
+		{
+			mWasCancelled = true;
+			mUpdatePositionsTimer.cancel();
+		}
+		
 		@Override
     	protected void onPostExecute(Void result)
 		{
-			synchronized (this) {
-				updateTaxiesPositions();
-			}
-	    	mTaxiesCoordsTimer.schedule(new TimerTask() {
+			if (mWasCancelled)
+				return;
+			updateTaxiesPositions();
+			mUpdatePositionsTask = new UpdatePositionsTask();			
+			if (mWasCancelled)
+				return;
+	    	mUpdatePositionsTimer.schedule(new TimerTask() {
 	            @Override
 	            public void run() {
-	            	runOnUiThread(new Runnable() {public void run(){new UpdatePositionsTask().execute();}});
+	            	runOnUiThread(new Runnable() {public void run(){ mUpdatePositionsTask.execute(); }});
 	            }
 	    	}, 5000);
 		}
@@ -338,24 +365,26 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
     {
     	super.onResume();
 
-		int reason = getIntent().getIntExtra("Reason", INTENT_SHOW_ALL_TAXIES);
+    	Intent intent = getIntent();
+		int reason = intent.getIntExtra("Reason", INTENT_SHOW_ALL_TAXIES);
     	SharedPreferences settings = getSharedPreferences("TaxiPrefs", MODE_PRIVATE);
 		mMapView.setVisibility(View.VISIBLE);
 		if (reason == INTENT_SHOW_ALL_TAXIES)
 		{
 			btnOrder.setVisibility(View.VISIBLE);
 			btnSettings.setVisibility(View.VISIBLE);
-	    	mTaxiesCoordsTimer = new Timer();
-	    	// TODO: переделать на schedule() после окончания предыдущей задачи 
-	    	mTaxiesCoordsTimer.schedule(new TimerTask() {
+	    	mUpdatePositionsTimer = new Timer();
+	    	mUpdatePositionsTask = new UpdatePositionsTask();
+	    	mUpdatePositionsTimer.schedule(new TimerTask() {
 	            @Override
 	            public void run() {
-	            	runOnUiThread(new Runnable() {public void run(){new UpdatePositionsTask().execute();}});
+	            	runOnUiThread(new Runnable() {public void run(){mUpdatePositionsTask.execute();}});
 	            }
 	    	}, 0);
 		}
 		else if (reason == INTENT_SHOW_ON_THE_MAP)
 		{
+			setTitle(getResources().getString(R.string.place_choosing));
 			btnOrder.setVisibility(View.GONE);
 			btnSettings.setVisibility(View.GONE);
 			mMapController.addMapListener(this);
@@ -374,10 +403,48 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
 				Toast.makeText(this, R.string.location_is_unknown, Toast.LENGTH_SHORT).show();
 			}
 		}
-    	mMapController.setPositionNoAnimationTo(new GeoPoint(settings.getFloat("Latitude", 51.735262f), settings.getFloat("Longitude", 36.185569f)), settings.getFloat("Scale", 0.0f));
+		else if (reason == INTENT_LOOKING_FOR_CAR)
+		{
+			setTitle(getResources().getString(R.string.state_looking_for_car));
+			btnOrder.setVisibility(View.GONE);
+			btnSettings.setVisibility(View.GONE);
+			GeoPoint start = new GeoPoint(intent.getDoubleExtra("Latitude", 51.730895), intent.getDoubleExtra("Longitude", 36.192779));
+			mMapController.setPositionNoAnimationTo(start, 13.0f);
+	        float px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 100, getResources().getDisplayMetrics());
+	        BitmapDrawable dr = (BitmapDrawable)getResources().getDrawable(R.drawable.radar);
+	        BitmapDrawable radarPic = new BitmapDrawable(getResources(), Bitmap.createScaledBitmap(dr.getBitmap(), (int)px, (int)px, true));
+	        OverlayItem radar = new OverlayItem(start, radarPic);
+	        mCommonOverlay.addOverlayItem(radar);
+	    	mUpdatePositionsTimer = new Timer();
+	    	mUpdatePositionsTask = new UpdatePositionsTask();
+	    	mUpdatePositionsTimer.schedule(new TimerTask() {
+	            @Override
+	            public void run() {
+	            	runOnUiThread(new Runnable() {public void run(){mUpdatePositionsTask.execute();}});
+	            }
+	    	}, 0);
+		}
+		if (reason != INTENT_LOOKING_FOR_CAR)
+			mMapController.setPositionNoAnimationTo(new GeoPoint(settings.getFloat("Latitude", 51.730895f), settings.getFloat("Longitude", 36.192779f)), settings.getFloat("Scale", 0.0f));
     };
     
-
+    /*@Override
+    protected void onNewIntent(Intent intent) 
+    {
+    	super.onNewIntent(intent);
+		int reason = intent.getIntExtra("Reason", INTENT_SHOW_ALL_TAXIES);
+		if (reason == INTENT_LOOKING_FOR_CAR)
+		{
+			GeoPoint start = new GeoPoint(intent.getDoubleExtra("Latitude", 51.730895), intent.getDoubleExtra("Longitude", 36.192779));
+			mMapController.setPositionNoAnimationTo(start);
+	        float px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 100, getResources().getDisplayMetrics());
+	        BitmapDrawable dr = (BitmapDrawable)getResources().getDrawable(R.drawable.radar);
+	        BitmapDrawable radarPic = new BitmapDrawable(getResources(), Bitmap.createScaledBitmap(dr.getBitmap(), (int)px, (int)px, true));
+	        OverlayItem radar = new OverlayItem(start, radarPic);
+	        mCommonOverlay.addOverlayItem(radar);
+		}
+    }*/
+    
     @Override
     protected Dialog onCreateDialog(int id) {
     	AlertDialog.Builder builder = null;
@@ -465,11 +532,11 @@ public class MapActivity extends Activity implements OnMapListener, GeoCodeListe
     	}
     	else
     	{
-            mOverlay.removeOverlayItem(mMeItem);
+            mTaxiesOverlay.removeOverlayItem(mMeItem);
             mMeItem.setGeoPoint(place);
     	}
         // Add the object to the layer
-        mOverlay.addOverlayItem(mMeItem);
+        mTaxiesOverlay.addOverlayItem(mMeItem);
     }
 
 	@Override

@@ -261,7 +261,7 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 		if (view == btnShowOnTheMapFrom || view == btnShowOnTheMapTo)
 		{
 			Intent intent = new Intent(this, MapActivity_.class);
-			intent. putExtra("Reason", MapActivity.INTENT_SHOW_ON_THE_MAP);
+			intent.putExtra("Reason", MapActivity.INTENT_SHOW_ON_THE_MAP);
 			if (view == btnShowOnTheMapFrom)
 				startActivityForResult(intent, REQUEST_CODE_SHOW_START_ON_THE_MAP);
 			else
@@ -272,7 +272,7 @@ public class OrderActivity extends Activity implements OnClickListener, OnChecke
 			if (MyLocationUtils.storedLocation != null)
 			{
 				Intent intent = new Intent(this, MapActivity_.class);
-				intent. putExtra("Reason", MapActivity.INTENT_CURRENT_LOCATION);
+				intent.putExtra("Reason", MapActivity.INTENT_CURRENT_LOCATION);
 				if (view == btnCurrentLocationFrom)
 					startActivityForResult(intent, REQUEST_CODE_CURRENT_LOCATION_START);
 				else

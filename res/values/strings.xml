@@ -43,5 +43,7 @@
     <string name="state_car_not_found">Не удалось найти машину</string>
     <string name="state_cancelled">Заказ отменён</string>
     <string name="state_edited">Заказ уточнён оператором</string>
-    
+    <string name="title_activity_service_map">ServiceMapActivity</string>
+    <string name="place_choosing">Выбор места на карте</string>
+
 </resources>

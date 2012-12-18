@@ -32,7 +32,7 @@ public class OrderStateService extends Service
     String mStoredOrdersIDs[];
     XmlPullParser mStateResponseParser;
     URL mStateUrl;
-    int mCounter;
+    int mFakeState;
     NotificationManager mNotificationManager;
     Timer mGetOrdersTimer; 
     boolean mPreloadingFinished;
@@ -53,7 +53,7 @@ public class OrderStateService extends Service
 		try
 		{
 			//mStateResponseParser.setInput(mStateUrl.openStream(), "UTF-8");
-			mStateResponseParser.setInput(new ByteArrayInputStream(("<?xml version=\"1.0\" standalone=\"yes\"?><response><state>" + Integer.toString(mCounter - 1) + "</state></response>").getBytes()), "UTF-8");
+			mStateResponseParser.setInput(new ByteArrayInputStream(("<?xml version=\"1.0\" standalone=\"yes\"?><response><state>" + Integer.toString(mFakeState - 1) + "</state></response>").getBytes()), "UTF-8");
 	        int eventType = mStateResponseParser.getEventType();
 	        while (eventType != XmlPullParser.END_DOCUMENT) {
 	        	if(eventType == XmlPullParser.START_TAG) {
@@ -77,18 +77,19 @@ public class OrderStateService extends Service
 	
 	private void getAllOrdersState(boolean isFirstTime)
 	{
-		Intent intent = new Intent(BROADCAST_ACTION);
+		Intent intentForBroadcast = new Intent(BROADCAST_ACTION);
 		for (int i = 0; i < mOrders.size(); ++i)
 		{
 			Order order = mOrders.get(i);
 			int newState = getOrderState(String.valueOf(order.getID()));
 			if (newState == order.getState() && !isFirstTime)
 				continue;
-			intent.putExtra("id", String.valueOf(order.getID()));
-			intent.putExtra("state", newState);
-			sendBroadcast(intent);
+			intentForBroadcast.putExtra("id", String.valueOf(order.getID()));
+			intentForBroadcast.putExtra("state", newState);
+			sendBroadcast(intentForBroadcast);
 			Context ctx = getApplicationContext();
 			Resources res = ctx.getResources();
+			Intent intentForActivity = null;
 			boolean doCancel = false;
 			boolean doRemove = false;
 			switch (newState)
@@ -102,6 +103,12 @@ public class OrderStateService extends Service
 				case Order.STATE_ACCEPTED :
 					break;
 				case Order.STATE_LOOKING_FOR_CAR :
+					intentForActivity = new Intent(this, ServiceMapActivity_.class)
+											.putExtra("Reason", MapActivity.INTENT_LOOKING_FOR_CAR)
+											.putExtra("Latitude", order.mPointFrom.getLat())
+											.putExtra("Longitude", order.mPointFrom.getLon());
+					//intentForActivity.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+					Log.d(LOG_TAG, intentForActivity.toString());
 					break;
 				case Order.STATE_CAR_ASSIGNED :
 					break;
@@ -133,14 +140,14 @@ public class OrderStateService extends Service
 				mNotificationManager.cancel(order.getID());
 			else if (doRemove)
 				RemoveOrder(order);
-			else
+			else if (intentForActivity != null)
 			{
 				Notification notification = new NotificationCompat.Builder(getApplicationContext())
 		         .setContentTitle(res.getString(Order.STATE_NAMES[newState]))
 		         .setContentText(order.toString())
 		         .setSmallIcon(R.drawable.ic_launcher)
 		         .setLargeIcon(BitmapFactory.decodeResource(res, R.drawable.ic_launcher))
-		         .setContentIntent(PendingIntent.getActivity(this, 0, new Intent(this, MapActivity_.class), 0))
+		         .setContentIntent(PendingIntent.getActivity(this, 0, intentForActivity, 0/*PendingIntent.FLAG_CANCEL_CURRENT*/))
 		         .build();	
 				mNotificationManager.notify(order.getID(), notification);
 			}
@@ -205,7 +212,8 @@ public class OrderStateService extends Service
     	mGetOrdersTimer.schedule(new GetOrdersTask(), 0);
 		mNotificationManager = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
 		
-		mCounter = 0;
+		//mFakeState = 0;
+		mFakeState = Order.STATE_LOOKING_FOR_CAR + 1;
 		
 		try
 		{
@@ -236,7 +244,7 @@ public class OrderStateService extends Service
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
-	    			mCounter = ++mCounter % 13;
+	    			//mFakeState = ++mFakeState % 13;
 	    			synchronized(mOrders) 
 	    			{
 		    			getAllOrdersState(false);
