@@ -1,3 +1,6 @@
-/gen
-/bin
-/.apt_generated
+/Android/Full/gen
+/Android/Full/bin
+/Android/Full/.apt_generated
+/Android/Lite/gen
+/Android/Lite/bin
+/Android/Lite/.apt_generated
