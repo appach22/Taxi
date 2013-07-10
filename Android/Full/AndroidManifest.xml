@@ -22,7 +22,7 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
         <activity
-            android:name="com.taxisoft.taxiorder.MapActivity_"
+            android:name="com.taxisoft.taxi7.MapActivity_"
             android:label="@string/app_name" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -31,17 +31,17 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.taxisoft.taxiorder.OrderActivity_"
+            android:name="com.taxisoft.taxi7.OrderActivity_"
             android:label="@string/creating_order" >
         </activity>
 
         <service
-            android:name="com.taxisoft.taxiorder.OrderStateService"
+            android:name="com.taxisoft.taxi7.OrderStateService"
             android:process=":order_state" >
         </service>
 
         <activity
-            android:name="com.taxisoft.taxiorder.ServiceMapActivity_"
+            android:name="com.taxisoft.taxi7.ServiceMapActivity_"
             android:label="@string/title_activity_service_map" >
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"

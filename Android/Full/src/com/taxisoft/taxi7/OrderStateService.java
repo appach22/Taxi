@@ -1,4 +1,4 @@
-package com.taxisoft.taxiorder;
+package com.taxisoft.taxi7;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

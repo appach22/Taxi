@@ -1,4 +1,4 @@
-package com.taxisoft.taxiorder;
+package com.taxisoft.taxi7;
 
 import android.graphics.drawable.Drawable;
 import ru.yandex.yandexmapkit.overlay.OverlayItem;
