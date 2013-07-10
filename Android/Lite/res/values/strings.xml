@@ -6,7 +6,7 @@
     <string name="order_taxi">Заказать такси</string>
     <string name="title_activity_settings">Параметры</string>
     <string name="your_name">Ваше имя:</string>
-    <string name="phone_number">Номер телефона:</string>
+    <string name="phone_number">Номер телефона (10 цифр):</string>
     <string name="first_time_warning">Введите свое имя и номер телефона для обратного звонка</string>
     <string name="title_success">Заказ отправлен</string>
     <string name="title_error">Ошибка</string>

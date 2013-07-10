@@ -3,6 +3,7 @@ package com.taxisoft.taxi7lite;
 import com.example.taxi7.R;
 
 import android.os.Bundle;
+import android.telephony.TelephonyManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -37,8 +38,9 @@ public class SettingsActivity extends Activity implements OnClickListener{
 		btnCancel = (Button) findViewById(R.id.btnCancel);
 		btnCancel.setOnClickListener(this);
 		twoButtonsLayout = (LinearLayout) findViewById(R.id.twoButtonsLayout);
-		edtName = (EditText) findViewById(R.id.edtName);
 		edtNumber = (EditText) findViewById(R.id.edtNumber);
+		edtNumber.addTextChangedListener(new MaskedWatcher("(###)###-##-##"));
+		edtName = (EditText) findViewById(R.id.edtName);
 		edtName.addTextChangedListener(new TextWatcher(){
 	        public void afterTextChanged(Editable s) {
 	        	if (!mName.equals(s.toString()))
@@ -84,6 +86,14 @@ public class SettingsActivity extends Activity implements OnClickListener{
 
     	mName = mSettings.getString("name", "");
     	mNumber = mSettings.getString("number", "");
+    	if (mNumber.length() == 0)
+    	{
+    		TelephonyManager tm = (TelephonyManager)getSystemService(TELEPHONY_SERVICE); 
+    		mNumber = tm.getLine1Number();
+    		if (mNumber.length() > 10)
+    			mNumber = mNumber.substring(mNumber.length() - 10, mNumber.length() - 1);
+    	}
+
     	edtName.setText(mName);
     	edtNumber.setText(mNumber);
     	

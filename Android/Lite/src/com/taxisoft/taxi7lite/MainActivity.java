@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -128,14 +129,10 @@ public class MainActivity extends Activity implements OnClickListener {
     	super.onResume();
     	
     	mName = mSettings.getString("name", "");
-    	mNumber = mSettings.getString("number", "");    	
+    	mNumber = mSettings.getString("number", "").replaceAll("[^0-9+]", "");    	
     	mIsFirstTime = false;
     	if (mNumber.length() == 0)
-    	{
     		mIsFirstTime = true;
-    		TelephonyManager tm = (TelephonyManager)getSystemService(TELEPHONY_SERVICE); 
-    		mNumber = tm.getLine1Number();
-    	}
     }
     
 //    private void sendSMS(String number, String message)
@@ -213,8 +210,19 @@ public class MainActivity extends Activity implements OnClickListener {
 		{
 			public void onReceive(Context context, Intent intent) 
 			{
-				mCheckNumberTask.stop();
-				new PlaceOrderTask(context).execute();
+				if (mCheckNumberTask.isRunning())
+				{
+					mCheckNumberTask.stop();
+					String number = intent.getStringExtra("number");
+					System.out.println("Comparing " + mNumber + " to " + number);
+					if (mNumber.equals(number))
+					{
+						SharedPreferences.Editor settingsEditor = mSettings.edit();
+						settingsEditor.putBoolean("numberIsVerified", true);
+						settingsEditor.commit();
+						new PlaceOrderTask(context).execute();
+					}
+				}
 			}
 	    };
 	    // создаем фильтр для BroadcastReceiver
@@ -222,10 +230,12 @@ public class MainActivity extends Activity implements OnClickListener {
 	    // регистрируем BroadcastReceiver
 	    registerReceiver(mNumberVerifiedReceiver, intFilt);
 
-	    String requestString = String.format("?number=%s&content=%s", mNumber, android.os.Build.DEVICE);
 		try
 		{
-			URL placeOrderUrl = new URL(URL_CHECK_NUMBER + URLEncoder.encode(requestString, "UTF-8"));
+		    System.out.println(mNumber);
+		    String requestString = String.format("?number=%s&content=%s", URLEncoder.encode("+7" + mNumber, "UTF-8"), URLEncoder.encode(android.os.Build.DEVICE + "_" + mNumber, "UTF-8"));
+		    System.out.println(requestString);
+			URL placeOrderUrl = new URL(URL_CHECK_NUMBER + requestString);
 			result = parseResponse(placeOrderUrl.openStream());
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -238,10 +248,12 @@ public class MainActivity extends Activity implements OnClickListener {
     {
     	boolean result = false;
     	
-    	String requestString = String.format("?number=%s&name=%s", mNumber, mName);
 		try
 		{
-			URL placeOrderUrl = new URL(URL_PLACE_ORDER_LITE + URLEncoder.encode(requestString, "UTF-8"));
+		    System.out.println(mNumber);
+	    	String requestString = String.format("?number=%s&name=%s", URLEncoder.encode("+7" + mNumber, "UTF-8"), URLEncoder.encode(mName, "UTF-8"));
+		    System.out.println(URL_PLACE_ORDER_LITE + requestString);
+			URL placeOrderUrl = new URL(URL_PLACE_ORDER_LITE + requestString);
 			result = parseResponse(placeOrderUrl.openStream());
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -274,6 +286,7 @@ public class MainActivity extends Activity implements OnClickListener {
         	}
         	eventType = mXmlResponseParser.next();
         }
+        System.out.println("Response ok");
 		return true;
 	}
 
@@ -343,6 +356,7 @@ public class MainActivity extends Activity implements OnClickListener {
 		private Context mCtx;
 		private ProgressDialog mCheckingNumberDialog;
 		private Timer mCheckNumberTimer;
+		private boolean mIsRunning;
 		
 		public CheckNumberTask(Context ctx)
 		{
@@ -358,6 +372,7 @@ public class MainActivity extends Activity implements OnClickListener {
 	            	runOnUiThread(new Runnable() { public void run(){
 		            	// Слишком долго ожидали ответной СМС-ки
 		            	mCheckingNumberDialog.dismiss();
+		    			mIsRunning = false;
 						// Показываем диалог, что все плохо
 						mDialog.setTitle(R.string.title_error);
 						mDialog.setMessage(R.string.msg_number_check_error);
@@ -366,6 +381,8 @@ public class MainActivity extends Activity implements OnClickListener {
 	            	}});
 	            }
 	    	}, 15000);
+			
+			mIsRunning = true;
 			
 			mCheckingNumberDialog = ProgressDialog.show(mCtx, "", mCtx.getResources().getString(R.string.wait_for_number_check), true);
 		}
@@ -393,8 +410,14 @@ public class MainActivity extends Activity implements OnClickListener {
 		// Вызывается извне при успешном получении ответной СМС
 		public void stop()
 		{
+			mIsRunning = false;
 			mCheckNumberTimer.cancel();
 			mCheckingNumberDialog.dismiss();
+		}
+		
+		public boolean isRunning()
+		{
+			return mIsRunning;
 		}
 	}
 
