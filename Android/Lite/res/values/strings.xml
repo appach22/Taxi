@@ -1,8 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">Taxi7 Lite</string>
-    <string name="action_settings">Settings</string>
-    <string name="hello_world">Hello world!</string>
-
+    <string name="app_name">Такси7 Lite</string>
+    <string name="action_settings">Параметры</string>
+    <string name="order_taxi">Заказать такси</string>
+    <string name="title_activity_settings">Параметры</string>
+    <string name="your_name">Ваше имя:</string>
+    <string name="phone_number">Номер телефона:</string>
+    <string name="first_time_warning">Введите свое имя и номер телефона для обратного звонка</string>
+    <string name="title_success">Заказ отправлен</string>
+    <string name="title_error">Ошибка</string>
+    <string name="msg_order_placed_successfully">Оператор перезвонит Вам в ближайшее время.</string>
+    <string name="msg_order_place_error">Ошибка отправки заказа! Возможно, отсутствует соединение с интернетом.</string>
+    <string name="wait_for_order_submit">Отправка заказа...</string>
+    <string name="wait_for_number_check">Проверка номера...</string>
+    <string name="msg_number_check_error_1">Ошибка проверки номера! Возможно, отcутствует соединение с интернетом.</string>
+    <string name="msg_number_check_error">Ошибка проверки номера! Убедитесь, что номер введен верно.</string>
+    <string name="continue_order">Заказать</string>
+    <string name="cancel">Отмена</string>
+    
 </resources>
