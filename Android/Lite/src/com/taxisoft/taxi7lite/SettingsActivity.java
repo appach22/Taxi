@@ -89,9 +89,15 @@ public class SettingsActivity extends Activity implements OnClickListener{
     	if (mNumber.length() == 0)
     	{
     		TelephonyManager tm = (TelephonyManager)getSystemService(TELEPHONY_SERVICE); 
-    		mNumber = tm.getLine1Number();
-    		if (mNumber.length() > 10)
-    			mNumber = mNumber.substring(mNumber.length() - 10, mNumber.length() - 1);
+    		if (tm != null)
+    		{
+    			mNumber = tm.getLine1Number();
+    			if (mNumber == null)
+    				mNumber = "";
+				mNumber = mNumber.replaceAll("[^0-9]", "");
+				if (mNumber.length() > 10)
+					mNumber = mNumber.substring(mNumber.length() - 10, mNumber.length());
+    		}
     	}
 
     	edtName.setText(mName);
