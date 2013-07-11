@@ -380,7 +380,7 @@ public class MainActivity extends Activity implements OnClickListener {
 						mDialog.show();	            		
 	            	}});
 	            }
-	    	}, 15000);
+	    	}, 30000);
 			
 			mIsRunning = true;
 			
