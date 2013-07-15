@@ -1,6 +1,6 @@
 package com.taxisoft.taxi7lite;
 
-import com.example.taxi7.R;
+import com.taxisoft.taxi7lite.R;
 
 import android.os.Bundle;
 import android.telephony.TelephonyManager;

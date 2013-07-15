@@ -11,8 +11,6 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
-import com.example.taxi7.R;
-
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
